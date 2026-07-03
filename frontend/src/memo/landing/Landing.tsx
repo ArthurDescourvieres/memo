@@ -48,7 +48,7 @@ export function Landing({ onRegister, onLogin }: LandingProps) {
 
 function LandingNav({ onRegister, onLogin }: LandingProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-[var(--color-line)] bg-[color-mix(in_oklab,var(--color-bg)_72%,transparent)] backdrop-blur-[14px]">
+    <header className="sticky top-0 z-20 border-b border-line bg-canvas/72 backdrop-blur-[14px]">
       <div className="mx-auto flex max-w-[1180px] items-center justify-between px-6 py-[14px]">
         <span className="inline-flex items-center gap-[10px] text-[18px] font-semibold tracking-[0.01em]">
           <MemoLogo size={26} />
@@ -80,7 +80,7 @@ function Hero({ onRegister }: { onRegister: () => void }) {
           <br />
           pas la tête.
         </h1>
-        <p className="mt-[22px] max-w-[460px] text-[clamp(16px,1.5vw,19px)] leading-[1.6] text-[var(--color-text-muted)]">
+        <p className="mt-[22px] max-w-[460px] text-[clamp(16px,1.5vw,19px)] leading-[1.6] text-muted">
           Memo est un espace de notes open source et léger. Tu crées un espace, tu écris, tu glisses
           tes images. Zéro configuration.
         </p>
@@ -102,14 +102,14 @@ function Hero({ onRegister }: { onRegister: () => void }) {
             Voir Memo en action
           </LandingButton>
         </div>
-        <p className="mt-[18px] text-[13px] text-[var(--color-text-faint)]">
+        <p className="mt-[18px] text-[13px] text-faint">
           Gratuit · Open source · Sans carte bancaire
         </p>
       </div>
 
       <div data-reveal>
         <div className="lp-hero-frame" ref={visualRef}>
-          <WindowFrame className="lp-win-hero">
+          <WindowFrame>
             <AppMockup />
           </WindowFrame>
         </div>

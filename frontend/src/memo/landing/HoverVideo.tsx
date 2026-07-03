@@ -28,7 +28,7 @@ export function HoverVideo({ src, webm, poster, label }: HoverVideoProps) {
   return (
     <video
       ref={ref}
-      className="lp-video"
+      className="block aspect-[16/10] w-full bg-surface-1 object-contain"
       muted
       loop
       playsInline
