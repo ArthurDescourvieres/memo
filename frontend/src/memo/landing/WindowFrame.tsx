@@ -3,11 +3,15 @@ import { MemoIcon } from '../MemoIcon'
 
 type WindowFrameProps = {
   children: ReactNode
-  /** Optional size/variant class (e.g. `lp-win-hero`). */
+  /** Classes supplémentaires (ex. survol zoom des démos). */
   className?: string
-  /** Optional centered label shown in the title bar. */
+  /** Libellé centré optionnel dans la barre de titre. */
   title?: string
 }
+
+const FRAME =
+  'overflow-hidden rounded-[14px] border border-line-strong bg-surface-1 ' +
+  'shadow-[0_40px_90px_-50px_var(--color-ink-shadow),0_0_0_1px_var(--color-overlay-weak)_inset]'
 
 /**
  * Cadre « fenêtre macOS » réutilisable : barre à trois pastilles + contenu.
@@ -15,14 +19,19 @@ type WindowFrameProps = {
  */
 export function WindowFrame({ children, className, title }: WindowFrameProps) {
   return (
-    <div className={`lp-win${className ? ` ${className}` : ''}`}>
-      <div className="lp-win-bar" aria-hidden>
-        <span className="lp-win-dot lp-win-dot--r" />
-        <span className="lp-win-dot lp-win-dot--y" />
-        <span className="lp-win-dot lp-win-dot--g" />
-        {title && <span className="lp-win-title">{title}</span>}
+    <div className={className ? `${FRAME} ${className}` : FRAME}>
+      <div
+        className="relative flex items-center gap-2 border-b border-line bg-surface-2 px-[14px] py-[11px]"
+        aria-hidden
+      >
+        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+        <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+        {title && (
+          <span className="absolute left-1/2 -translate-x-1/2 text-xs text-faint">{title}</span>
+        )}
       </div>
-      <div className="lp-win-body">{children}</div>
+      <div>{children}</div>
     </div>
   )
 }
@@ -33,12 +42,12 @@ export function WindowFrame({ children, className, title }: WindowFrameProps) {
  */
 export function VideoSlot({ label }: { label: string }) {
   return (
-    <div className="lp-vslot">
-      <span className="lp-vslot-play">
+    <div className="flex min-h-[300px] flex-col items-center justify-center gap-2.5 text-faint">
+      <span className="grid h-[46px] w-[46px] place-items-center rounded-full border border-line-strong bg-surface text-dim">
         <MemoIcon name="play" size={20} strokeWidth={1.6} />
       </span>
-      <span className="lp-vslot-label">{label}</span>
-      <span className="lp-vslot-hint">Survole pour lire</span>
+      <span className="text-[13px] text-dim">{label}</span>
+      <span className="text-[11px]">Survole pour lire</span>
     </div>
   )
 }

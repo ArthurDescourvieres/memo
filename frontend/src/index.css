@@ -3,7 +3,138 @@
 @import './memo/styles/tokens.css';
 @import './memo/styles/base.css' layer(base);
 @import './memo/styles/tiptap.css';
-@import './memo/styles/responsive.css';
-@import './memo/styles/landing.css';
-@import './memo/styles/landing-sections.css';
-@import './memo/styles/landing-mockup.css';
+
+/* ============================================================
+   Pont design tokens → utilitaires Tailwind (v4).
+   `inline` : Tailwind écrit la référence var() directement dans chaque
+   utilitaire sans redéclarer la variable — les couleurs restent pilotées
+   par tokens.css (thème clair/sombre compris).
+   Génère bg-accent, text-muted, border-line, ease-expo, etc.
+   ============================================================ */
+@theme inline {
+  /* accent */
+  --color-accent: var(--color-accent);
+  --color-accent-hi: var(--color-accent-hi);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-border: var(--color-accent-border);
+  --color-on-accent: var(--color-on-accent);
+
+  /* fonds & surfaces */
+  --color-canvas: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-strong: var(--color-surface-strong);
+  --color-surface-1: var(--color-surface-1);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-3: var(--color-surface-3);
+  --color-surface-4: var(--color-surface-4);
+
+  /* traits & voiles */
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-overlay-weak: var(--color-overlay-weak);
+  --color-overlay: var(--color-overlay);
+  --color-overlay-hi: var(--color-overlay-hi);
+
+  /* texte */
+  --color-ink: var(--color-text);
+  --color-muted: var(--color-text-muted);
+  --color-dim: var(--color-text-dim);
+  --color-faint: var(--color-text-faint);
+
+  /* secondaires */
+  --color-gold: var(--color-gold);
+  --color-gold-soft: var(--color-gold-soft);
+  --color-gold-hi: var(--color-gold-hi);
+  --color-danger: var(--color-danger);
+  --color-danger-border: var(--color-danger-border);
+
+  /* easings */
+  --ease-expo: var(--ease-out-expo);
+  --ease-spring: var(--ease-spring);
+}
+
+/* ============================================================
+   Effets communs de la landing (ex-landing.css) — non transposables
+   en utilitaires : conteneur plein écran, fond quadrillé (masque),
+   cadre parallaxe piloté en JS (--px/--py), révélation au scroll.
+   ============================================================ */
+.landing {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family:
+    'Satoshi',
+    -apple-system,
+    system-ui,
+    sans-serif;
+  font-weight: 300;
+}
+
+.lp-hero-frame {
+  transform: translate3d(calc(var(--px, 0) * 16px), calc(var(--py, 0) * 16px), 0);
+  transition: transform 0.35s var(--ease-out-expo);
+  will-change: transform;
+}
+
+.lp-grid-bg {
+  position: relative;
+  isolation: isolate;
+}
+.lp-grid-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
+  mask-image:
+    repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
+    repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px);
+  -webkit-mask-image:
+    repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
+    repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.7s var(--ease-out-expo),
+    transform 0.7s var(--ease-out-expo);
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Réduction des animations (réglage système) : coupe tout, garde les états. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .landing {
+    scroll-behavior: auto;
+  }
+  .lp-hero-frame {
+    transform: none !important;
+  }
+  [data-reveal] {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}
