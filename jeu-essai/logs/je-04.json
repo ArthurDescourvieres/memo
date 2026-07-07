@@ -1,0 +1,23 @@
+{
+  "scenario": "JE-04",
+  "api": "http://localhost:3100",
+  "attempts": [
+    {
+      "label": "sans token (handshake.auth vide)",
+      "connected": false,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "label": "token invalide (\"not-a-jwt\")",
+      "connected": false,
+      "error": "UNAUTHENTICATED"
+    },
+    {
+      "label": "token JWT bidon signé inconnu",
+      "connected": false,
+      "error": "UNAUTHENTICATED"
+    }
+  ],
+  "allRejected": true,
+  "measuredAt": "2026-07-03T11:58:05.075Z"
+}

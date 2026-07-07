@@ -1,0 +1,38 @@
+{
+  "scenario": "JE-01",
+  "api": "http://localhost:3100",
+  "noteId": "cmr4vlb9a000be27orad4gf39",
+  "emitted": 20,
+  "receivedByB": 20,
+  "latency": {
+    "samples": 20,
+    "minMs": 7.837,
+    "medianMs": 10.492,
+    "p95Ms": 16.812,
+    "maxMs": 21.622,
+    "meanMs": 11.349
+  },
+  "lastDeltaTextReceived": "delta frappe #19",
+  "joinAAck": {
+    "ok": true,
+    "presence": []
+  },
+  "joinBAck": {
+    "ok": true,
+    "presence": [
+      {
+        "socketId": "Yms8PlYQg8PI9r5tAAAB",
+        "userId": "cmr4vlb3a0000e27ob9xlh8r3",
+        "name": "JE a 13556-0"
+      }
+    ]
+  },
+  "persistence": {
+    "contentTextBefore": "contenu initial",
+    "contentTextAfter": "contenu initial",
+    "updatedAtBefore": "2026-07-03T11:54:20.350Z",
+    "updatedAtAfter": "2026-07-03T11:54:20.350Z",
+    "unchanged": true
+  },
+  "measuredAt": "2026-07-03T11:54:22.195Z"
+}

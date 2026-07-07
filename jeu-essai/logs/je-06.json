@@ -1,0 +1,86 @@
+{
+  "scenario": "JE-06",
+  "api": "http://localhost:3100",
+  "noteId": "cmr4vq7k3001ve27ooriczzfv",
+  "rounds": [
+    {
+      "round": 0,
+      "ackA": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.060Z"
+      },
+      "ackB": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.060Z"
+      },
+      "finalContentText": "AAAAA-writerA-round0-AAAAA",
+      "finalUpdatedAt": "2026-07-03T11:58:09.060Z",
+      "winner": "A",
+      "coherent": true
+    },
+    {
+      "round": 1,
+      "ackA": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.210Z"
+      },
+      "ackB": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.210Z"
+      },
+      "finalContentText": "BBBBB-writerB-round1-BBBBB",
+      "finalUpdatedAt": "2026-07-03T11:58:09.210Z",
+      "winner": "B",
+      "coherent": true
+    },
+    {
+      "round": 2,
+      "ackA": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.364Z"
+      },
+      "ackB": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.364Z"
+      },
+      "finalContentText": "AAAAA-writerA-round2-AAAAA",
+      "finalUpdatedAt": "2026-07-03T11:58:09.364Z",
+      "winner": "A",
+      "coherent": true
+    },
+    {
+      "round": 3,
+      "ackA": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.557Z"
+      },
+      "ackB": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.557Z"
+      },
+      "finalContentText": "AAAAA-writerA-round3-AAAAA",
+      "finalUpdatedAt": "2026-07-03T11:58:09.557Z",
+      "winner": "A",
+      "coherent": true
+    },
+    {
+      "round": 4,
+      "ackA": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.709Z"
+      },
+      "ackB": {
+        "ok": true,
+        "updatedAt": "2026-07-03T11:58:09.708Z"
+      },
+      "finalContentText": "AAAAA-writerA-round4-AAAAA",
+      "finalUpdatedAt": "2026-07-03T11:58:09.709Z",
+      "winner": "A",
+      "coherent": true
+    }
+  ],
+  "allCoherent": true,
+  "anyCorruption": false,
+  "finalContentText": "AAAAA-writerA-round4-AAAAA",
+  "measuredAt": "2026-07-03T11:58:09.868Z"
+}
