@@ -43,6 +43,15 @@ export function NoteEditor({
       if (u.title !== undefined) setTitle(u.title)
       if (u.content !== undefined) setRemoteContent(u.content)
     },
+    onResync: async () => {
+      // Après une reconnexion, on a pu manquer des note:update hors-ligne :
+      // on récupère la note à jour et on l'applique, sauf si l'utilisateur
+      // est en train de taper (ses modifications locales priment).
+      const { data } = await note.refetch()
+      if (!data || isTypingRef.current) return
+      setTitle(data.title)
+      setRemoteContent(data.content)
+    },
   })
 
   useEffect(() => {
