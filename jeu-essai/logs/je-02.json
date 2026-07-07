@@ -1,0 +1,18 @@
+{
+  "scenario": "JE-02",
+  "api": "http://localhost:3100",
+  "noteId": "cmr4vmyop000ne27o5ij1gtds",
+  "patchHttpStatus": 200,
+  "patchResponseUpdatedAt": "2026-07-03T11:55:37.391Z",
+  "before": {
+    "contentText": "contenu initial JE-02",
+    "updatedAt": "2026-07-03T11:55:37.369Z"
+  },
+  "after": {
+    "contentText": "texte persistant reecrit via autosave PATCH JE-02",
+    "updatedAt": "2026-07-03T11:55:37.391Z"
+  },
+  "contentTextReextracted": true,
+  "updatedAtAdvanced": true,
+  "measuredAt": "2026-07-03T11:55:37.417Z"
+}

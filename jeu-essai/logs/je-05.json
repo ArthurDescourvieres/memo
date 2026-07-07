@@ -1,0 +1,12 @@
+{
+  "scenario": "JE-05",
+  "api": "http://localhost:3100",
+  "noteId": "cmr4vq5n90019e27o61gu454z",
+  "strangerJoinAck": {
+    "ok": false,
+    "error": "FORBIDDEN"
+  },
+  "strangerReceivedLiveAfterRefusedJoin": 0,
+  "conform": true,
+  "measuredAt": "2026-07-03T11:58:07.720Z"
+}

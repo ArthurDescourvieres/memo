@@ -1,0 +1,24 @@
+﻿===== JE-01 (non-ecriture : contentText et updatedAt inchanges apres note:live) =====
+            id             |   contentText   |       updatedAt        
+---------------------------+-----------------+------------------------
+ cmr4vlb9a000be27orad4gf39 | contenu initial | 2026-07-03 11:54:20.35
+(1 row)
+
+===== JE-02 (persistance PATCH autosave : contentText reextrait) =====
+            id             |                    contentText                    |        updatedAt        
+---------------------------+---------------------------------------------------+-------------------------
+ cmr4vmyop000ne27o5ij1gtds | texte persistant reecrit via autosave PATCH JE-02 | 2026-07-03 11:55:37.391
+(1 row)
+
+===== JE-03 (non-ecriture apres tentative note:update par un VIEWER) =====
+            id             |      contentText      |        updatedAt        
+---------------------------+-----------------------+-------------------------
+ cmr4vo40n000ze27ogzodfx1m | contenu initial JE-03 | 2026-07-03 11:56:30.935
+(1 row)
+
+===== JE-06 (etat final coherent apres 5 rounds simultanes = last-writer-wins) =====
+            id             |        contentText         |        updatedAt        
+---------------------------+----------------------------+-------------------------
+ cmr4vq7k3001ve27ooriczzfv | AAAAA-writerA-round4-AAAAA | 2026-07-03 11:58:09.709
+(1 row)
+
