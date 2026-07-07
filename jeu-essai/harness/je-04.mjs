@@ -3,6 +3,12 @@
 // alors connect_error et ne se connecte jamais.
 import { connect, writeReport } from './lib.mjs'
 
+/** JWT-shaped token with invalid signature (runtime-built to avoid gitleaks false positives). */
+function fakeMalformedJwt() {
+  const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${b64({ alg: 'HS256' })}.${b64({ sub: 'hacker' })}.zzzzINVALIDSIGzzzz`
+}
+
 async function attempt(label, token) {
   try {
     const s = await connect(token, { timeoutMs: 4000 })
@@ -16,10 +22,7 @@ async function attempt(label, token) {
 async function main() {
   const noToken = await attempt('sans token (handshake.auth vide)', undefined)
   const badToken = await attempt('token invalide ("not-a-jwt")', 'not-a-jwt')
-  const malformed = await attempt(
-    'token JWT bidon signé inconnu',
-    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoYWNrZXIifQ.zzzzINVALIDSIGzzzz',
-  )
+  const malformed = await attempt('token JWT bidon signé inconnu', fakeMalformedJwt())
 
   const report = {
     scenario: 'JE-04',

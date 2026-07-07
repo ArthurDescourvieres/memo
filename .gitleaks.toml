@@ -14,4 +14,7 @@ paths = [
   # Scripts de benchmark (k6 / load realtime) : comptes de test éphémères créés
   # à la volée, mots de passe jetables — outillage de mesure, jamais en prod.
   '''^benchmarks/''',
+  # Harnais jeu d'essai : tokens JWT factices construits à la volée pour tester
+  # le rejet au handshake — jamais des secrets de prod.
+  '''^jeu-essai/harness/''',
 ]
