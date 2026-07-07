@@ -3,7 +3,10 @@
 // pas abonné à la room (ne reçoit aucun delta émis ensuite).
 import { setupSharedNote, connect, emitAck, sleep, writeReport } from './lib.mjs'
 
-const liveDoc = (text) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+const liveDoc = (text) => ({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+})
 
 async function main() {
   // memberRole: null → B est enregistré (token valide) mais PAS membre du workspace.
@@ -14,7 +17,9 @@ async function main() {
   const sx = await connect(stranger.accessToken) // token valide, non-membre de CE workspace
 
   let strangerReceived = 0
-  sx.on('note:live', () => { strangerReceived += 1 })
+  sx.on('note:live', () => {
+    strangerReceived += 1
+  })
 
   await emitAck(sa, 'note:join', { noteId: note.id })
   const strangerJoin = await emitAck(sx, 'note:join', { noteId: note.id })
@@ -33,7 +38,8 @@ async function main() {
     noteId: note.id,
     strangerJoinAck: strangerJoin,
     strangerReceivedLiveAfterRefusedJoin: strangerReceived,
-    conform: strangerJoin?.ok === false && strangerJoin?.error === 'FORBIDDEN' && strangerReceived === 0,
+    conform:
+      strangerJoin?.ok === false && strangerJoin?.error === 'FORBIDDEN' && strangerReceived === 0,
     measuredAt: new Date().toISOString(),
   }
   const path = writeReport('je-05', report)

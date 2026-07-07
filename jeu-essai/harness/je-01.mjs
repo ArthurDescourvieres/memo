@@ -24,7 +24,10 @@ function stats(xs) {
 }
 
 async function main() {
-  const { a, b, note } = await setupSharedNote({ memberRole: 'EDITOR', seedText: 'contenu initial' })
+  const { a, b, note } = await setupSharedNote({
+    memberRole: 'EDITOR',
+    seedText: 'contenu initial',
+  })
   const before = await getNote(a.accessToken, note.id)
 
   const sa = await connect(a.accessToken)
@@ -35,7 +38,11 @@ async function main() {
   sb.on('note:live', (msg) => {
     const seq = msg?.content?.seq
     if (typeof seq === 'number' && t0.has(seq)) {
-      received.push({ seq, latencyMs: performance.now() - t0.get(seq), text: msg?.content?.content?.[0]?.content?.[0]?.text })
+      received.push({
+        seq,
+        latencyMs: performance.now() - t0.get(seq),
+        text: msg?.content?.content?.[0]?.content?.[0]?.text,
+      })
     }
   })
 
@@ -47,7 +54,11 @@ async function main() {
     t0.set(seq, performance.now())
     sa.emit('note:live', {
       noteId: note.id,
-      content: { type: 'doc', seq, content: [{ type: 'paragraph', content: [{ type: 'text', text: `delta frappe #${seq}` }] }] },
+      content: {
+        type: 'doc',
+        seq,
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: `delta frappe #${seq}` }] }],
+      },
     })
     await sleep(INTERVAL_MS)
   }

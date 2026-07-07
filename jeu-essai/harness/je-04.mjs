@@ -16,7 +16,10 @@ async function attempt(label, token) {
 async function main() {
   const noToken = await attempt('sans token (handshake.auth vide)', undefined)
   const badToken = await attempt('token invalide ("not-a-jwt")', 'not-a-jwt')
-  const malformed = await attempt('token JWT bidon signé inconnu', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoYWNrZXIifQ.zzzzINVALIDSIGzzzz')
+  const malformed = await attempt(
+    'token JWT bidon signé inconnu',
+    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoYWNrZXIifQ.zzzzINVALIDSIGzzzz',
+  )
 
   const report = {
     scenario: 'JE-04',

@@ -65,7 +65,10 @@ const doc = (text) => ({
  * rôle demandé, plus une note ensemencée. Renvoie tokens, ids et l'état initial.
  * `memberRole` = null → B n'est PAS ajouté au workspace (cas non-membre, JE-05).
  */
-export async function setupSharedNote({ memberRole = 'EDITOR', seedText = 'contenu initial' } = {}) {
+export async function setupSharedNote({
+  memberRole = 'EDITOR',
+  seedText = 'contenu initial',
+} = {}) {
   const a = await register('a')
   const b = await register('b')
 
@@ -83,11 +86,10 @@ export async function setupSharedNote({ memberRole = 'EDITOR', seedText = 'conte
     method: 'POST',
     body: JSON.stringify({ name: 'Dossier' }),
   })
-  const note = await authed(
-    a.accessToken,
-    `/api/workspaces/${ws.id}/folders/${folder.id}/notes`,
-    { method: 'POST', body: JSON.stringify({ title: 'Note partagée', folderId: folder.id, content: doc(seedText) }) },
-  )
+  const note = await authed(a.accessToken, `/api/workspaces/${ws.id}/folders/${folder.id}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ title: 'Note partagée', folderId: folder.id, content: doc(seedText) }),
+  })
   return { a, b, ws, folder, note }
 }
 

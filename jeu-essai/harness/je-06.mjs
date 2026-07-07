@@ -7,7 +7,10 @@ import { setupSharedNote, getNote, connect, emitAck, sleep, doc, writeReport } f
 const ROUNDS = 5
 
 async function main() {
-  const { a, b, note } = await setupSharedNote({ memberRole: 'EDITOR', seedText: 'contenu initial JE-06' })
+  const { a, b, note } = await setupSharedNote({
+    memberRole: 'EDITOR',
+    seedText: 'contenu initial JE-06',
+  })
   const sa = await connect(a.accessToken)
   const sb = await connect(b.accessToken)
   await emitAck(sa, 'note:join', { noteId: note.id })
@@ -25,7 +28,8 @@ async function main() {
     ])
     await sleep(120)
     const after = await getNote(a.accessToken, note.id)
-    const winner = after.contentText === textA ? 'A' : after.contentText === textB ? 'B' : 'CORRUPT/MIX'
+    const winner =
+      after.contentText === textA ? 'A' : after.contentText === textB ? 'B' : 'CORRUPT/MIX'
     rounds.push({
       round: k,
       ackA,

@@ -5,10 +5,16 @@
 //  3) note:live de B n'est PAS rebroadcasté (A ne le reçoit pas).
 import { setupSharedNote, getNote, connect, emitAck, sleep, writeReport } from './lib.mjs'
 
-const liveDoc = (text) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+const liveDoc = (text) => ({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+})
 
 async function main() {
-  const { a, b, note } = await setupSharedNote({ memberRole: 'VIEWER', seedText: 'contenu initial JE-03' })
+  const { a, b, note } = await setupSharedNote({
+    memberRole: 'VIEWER',
+    seedText: 'contenu initial JE-03',
+  })
   const before = await getNote(a.accessToken, note.id)
 
   const sa = await connect(a.accessToken) // OWNER (peut émettre)
@@ -17,8 +23,13 @@ async function main() {
   let aReceivedLive = 0
   let bReceivedLive = 0
   let bLastText = null
-  sa.on('note:live', () => { aReceivedLive += 1 })
-  sb.on('note:live', (m) => { bReceivedLive += 1; bLastText = m?.content?.content?.[0]?.content?.[0]?.text ?? null })
+  sa.on('note:live', () => {
+    aReceivedLive += 1
+  })
+  sb.on('note:live', (m) => {
+    bReceivedLive += 1
+    bLastText = m?.content?.content?.[0]?.content?.[0]?.text ?? null
+  })
 
   const joinA = await emitAck(sa, 'note:join', { noteId: note.id })
   const joinB = await emitAck(sb, 'note:join', { noteId: note.id })
