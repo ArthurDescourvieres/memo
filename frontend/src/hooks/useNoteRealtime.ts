@@ -17,9 +17,17 @@ type RemoteUpdate = {
   senderUserId?: string
 }
 
+type JoinAck = { ok: boolean; presence?: Presence[]; error?: string }
+
 type Options = {
   onRemoteUpdate?: (u: RemoteUpdate) => void
   onRemoteLive?: (u: RemoteUpdate) => void
+  /**
+   * Called after the socket drops and reconnects, once the note room has been
+   * re-joined. While offline the client misses `note:update` broadcasts, so the
+   * consumer uses this to refetch the note and resync its content.
+   */
+  onResync?: () => void
 }
 
 export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
@@ -30,6 +38,8 @@ export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
   cbRef.current = opts.onRemoteUpdate
   const liveCbRef = useRef(opts.onRemoteLive)
   liveCbRef.current = opts.onRemoteLive
+  const resyncRef = useRef(opts.onResync)
+  resyncRef.current = opts.onResync
 
   useEffect(() => {
     if (!noteId) {
@@ -38,12 +48,40 @@ export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
     }
     const socket = getSocket()
     let cancelled = false
+    // Flipped to true on every disconnect, so the *next* `connect` is treated
+    // as a reconnection (re-join + resync) rather than the initial join.
+    let reconnecting = false
 
     setError(null)
     setPresence([])
 
-    const onConnect = () => setConnected(true)
-    const onDisconnect = () => setConnected(false)
+    const join = () => {
+      socket.emit('note:join', { noteId }, (res: JoinAck) => {
+        if (cancelled) return
+        if (!res?.ok) {
+          setError(res?.error ?? 'JOIN_FAILED')
+          return
+        }
+        setError(null)
+        setPresence(res.presence ?? [])
+      })
+    }
+
+    const onConnect = () => {
+      setConnected(true)
+      if (reconnecting) {
+        // The transport dropped and came back: the server removed this socket
+        // from the room on `disconnecting`, and we missed any note:update sent
+        // meanwhile. Re-join the room and let the consumer resync the content.
+        reconnecting = false
+        join()
+        resyncRef.current?.()
+      }
+    }
+    const onDisconnect = () => {
+      setConnected(false)
+      reconnecting = true
+    }
     const onConnectError = (err: Error) => setError(err.message)
 
     const onJoined = (p: Presence & { noteId: string }) => {
@@ -75,20 +113,9 @@ export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
     socket.on('note:update', onUpdate)
     socket.on('note:live', onLive)
 
-    if (socket.connected) onConnect()
+    if (socket.connected) setConnected(true)
 
-    socket.emit(
-      'note:join',
-      { noteId },
-      (res: { ok: boolean; presence?: Presence[]; error?: string }) => {
-        if (cancelled) return
-        if (!res?.ok) {
-          setError(res?.error ?? 'JOIN_FAILED')
-          return
-        }
-        setPresence(res.presence ?? [])
-      },
-    )
+    join()
 
     return () => {
       cancelled = true

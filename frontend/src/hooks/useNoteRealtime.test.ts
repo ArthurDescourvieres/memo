@@ -117,6 +117,28 @@ describe('useNoteRealtime', () => {
     expect(result.current.connected).toBe(false)
   })
 
+  it('re-joins the room and resyncs only after a reconnect', () => {
+    const onResync = vi.fn()
+    renderHook(() => useNoteRealtime('n1', { onResync }))
+    const sock = socketRef.current
+    const joinCount = () => sock.emit.mock.calls.filter((c) => c[0] === 'note:join').length
+
+    // Initial mount joins exactly once and does not resync.
+    expect(joinCount()).toBe(1)
+    expect(onResync).not.toHaveBeenCalled()
+
+    // A first `connect` (no prior disconnect) must not re-join or resync.
+    act(() => sock.trigger('connect'))
+    expect(joinCount()).toBe(1)
+    expect(onResync).not.toHaveBeenCalled()
+
+    // Drop then reconnect: re-join the room and resync the content once.
+    act(() => sock.trigger('disconnect'))
+    act(() => sock.trigger('connect'))
+    expect(joinCount()).toBe(2)
+    expect(onResync).toHaveBeenCalledTimes(1)
+  })
+
   it('sendLive emits a note:live payload scoped to the note', () => {
     const { result } = renderHook(() => useNoteRealtime('n1'))
     act(() => result.current.sendLive({ title: 'Live' }))
