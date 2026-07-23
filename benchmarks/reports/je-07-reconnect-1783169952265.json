@@ -1,0 +1,57 @@
+{
+  "scenario": "JE-07",
+  "title": "Reconnexion — réabonnement et resynchronisation",
+  "base": "http://localhost:3000",
+  "roles": {
+    "A": "OWNER (créateur)",
+    "B": "EDITOR (ajouté au workspace)"
+  },
+  "resyncMechanism": "http-get",
+  "params": {
+    "updatesDuringDowntime": 5,
+    "gapMs": 400,
+    "downtimeMsApprox": 2000
+  },
+  "lastPersistedMarker": "A-update-5",
+  "lastPersistedUpdatedAt": "2026-07-04T12:59:15.200Z",
+  "resyncContentText": "A-update-5",
+  "checks": [
+    {
+      "name": "A et B rejoignent la room",
+      "pass": true,
+      "detail": "A=true B=true"
+    },
+    {
+      "name": "B reçoit le live de A avant coupure",
+      "pass": true,
+      "detail": "reçu=live-before"
+    },
+    {
+      "name": "B est bien déconnecté pendant la coupure",
+      "pass": true,
+      "detail": "connected=false"
+    },
+    {
+      "name": "B ne reçoit RIEN pendant la coupure",
+      "pass": true,
+      "detail": "deltas=0 (dont 1 live + 5 update émis par A)"
+    },
+    {
+      "name": "B rejoue note:join à la reconnexion",
+      "pass": true,
+      "detail": "ack={\"ok\":true,\"presence\":[{\"socketId\":\"rZWtPzECPGVqnbRzAABs\",\"userId\":\"cmr6dcl1f000lpe0tbn2w2fnw\",\"name\":\"je07a-1783169952265\"}]}"
+    },
+    {
+      "name": "B resynchronise le dernier contenu persisté (GET HTTP)",
+      "pass": true,
+      "detail": "contentText=\"A-update-5\" attendu⊇\"A-update-5\""
+    },
+    {
+      "name": "B reçoit de nouveau les live après reconnexion",
+      "pass": true,
+      "detail": "reçu=live-after"
+    }
+  ],
+  "ok": true,
+  "measuredAt": "2026-07-04T12:59:16.449Z"
+}
