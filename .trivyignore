@@ -26,3 +26,27 @@ CVE-2026-42504
 # (dernière build = 2026-06-22, vérifié le 2026-06-29). À retirer en même temps
 # que CVE-2026-42504 dès que Caddy repasse sur Go >= 1.26.4.
 CVE-2026-27145
+
+# CVE-2026-39822 — Go stdlib (os) : `os.Root` suit les liens symboliques, ce qui
+# autorise une traversée de répertoire. Même origine que les deux CVE ci-dessus :
+# binaire `caddy` de l'image caddy:2-alpine (compilé Go 1.26.3 ; corrigé en Go
+# 1.25.12 / 1.26.5). Non corrigeable de notre côté — `apk upgrade` ne recompile
+# pas Caddy, et la dernière image amont date du 2026-06-24 (vérifié le
+# 2026-07-25), donc antérieure au correctif.
+# Non exploitable ici : la traversée suppose de pouvoir déposer un lien
+# symbolique dans l'arborescence servie. Caddy ne sert que /srv, rempli au build
+# de l'image avec le bundle statique du front et jamais écrit à l'exécution — les
+# pièces jointes des utilisateurs vont sur le stockage objet, pas sur ce disque.
+# Aucun chemin ne permet à un attaquant d'y créer un lien.
+# À retirer dès que Caddy repasse sur Go >= 1.26.5.
+CVE-2026-39822
+
+# GHSA-hrxh-6v49-42gf — google.golang.org/grpc < 1.82.1 : vulnérabilités xDS RBAC
+# et HTTP/2. Dépendance Go embarquée dans le même binaire `caddy`, donc corrigible
+# uniquement par une reconstruction amont (cf. ci-dessus).
+# Hors périmètre : les failles visent le contrôle d'accès xDS et le serveur gRPC.
+# Notre Caddy sert des fichiers statiques et fait du reverse-proxy HTTP vers
+# api:3000 (voir Caddyfile) — ni xDS, ni service gRPC exposé, ni RBAC gRPC. Le
+# code concerné n'est jamais atteint.
+# À retirer en même temps que CVE-2026-39822.
+GHSA-hrxh-6v49-42gf
