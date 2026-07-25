@@ -146,13 +146,41 @@ async function main() {
   socketB.close()
 
   const checks = [
-    { name: 'A et B rejoignent la room', pass: joinA?.ok === true && joinB?.ok === true, detail: `A=${joinA?.ok} B=${joinB?.ok}` },
-    { name: 'B reçoit le live de A avant coupure', pass: liveBeforeReceived, detail: `reçu=${liveBeforeText}` },
-    { name: 'B est bien déconnecté pendant la coupure', pass: bDisconnected, detail: `connected=${socketB.connected}` },
-    { name: 'B ne reçoit RIEN pendant la coupure', pass: receivedDuringDowntime === 0, detail: `deltas=${receivedDuringDowntime} (dont 1 live + ${UPDATES} update émis par A)` },
-    { name: 'B rejoue note:join à la reconnexion', pass: rejoin?.ok === true, detail: `ack=${JSON.stringify(rejoin)}` },
-    { name: 'B resynchronise le dernier contenu persisté (GET HTTP)', pass: resyncMatchesLast, detail: `contentText="${resyncText}" attendu⊇"${lastMarker}"` },
-    { name: 'B reçoit de nouveau les live après reconnexion', pass: liveAfterReceived, detail: `reçu=${liveAfterText}` },
+    {
+      name: 'A et B rejoignent la room',
+      pass: joinA?.ok === true && joinB?.ok === true,
+      detail: `A=${joinA?.ok} B=${joinB?.ok}`,
+    },
+    {
+      name: 'B reçoit le live de A avant coupure',
+      pass: liveBeforeReceived,
+      detail: `reçu=${liveBeforeText}`,
+    },
+    {
+      name: 'B est bien déconnecté pendant la coupure',
+      pass: bDisconnected,
+      detail: `connected=${socketB.connected}`,
+    },
+    {
+      name: 'B ne reçoit RIEN pendant la coupure',
+      pass: receivedDuringDowntime === 0,
+      detail: `deltas=${receivedDuringDowntime} (dont 1 live + ${UPDATES} update émis par A)`,
+    },
+    {
+      name: 'B rejoue note:join à la reconnexion',
+      pass: rejoin?.ok === true,
+      detail: `ack=${JSON.stringify(rejoin)}`,
+    },
+    {
+      name: 'B resynchronise le dernier contenu persisté (GET HTTP)',
+      pass: resyncMatchesLast,
+      detail: `contentText="${resyncText}" attendu⊇"${lastMarker}"`,
+    },
+    {
+      name: 'B reçoit de nouveau les live après reconnexion',
+      pass: liveAfterReceived,
+      detail: `reçu=${liveAfterText}`,
+    },
   ]
   const ok = checks.every((c) => c.pass)
 

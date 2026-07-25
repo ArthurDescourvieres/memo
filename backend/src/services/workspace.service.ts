@@ -10,6 +10,7 @@ import {
   WORKSPACE_CACHE_TTL,
   type CachedResult,
 } from '../lib/cache.js'
+import { emitToUser } from '../realtime/emitter.js'
 import type { CreateWorkspaceInput, UpdateWorkspaceInput } from '../schemas/workspace.schema.js'
 
 // Hard cap on members embedded in a workspace detail payload. Memberships are
@@ -147,6 +148,10 @@ export const workspaceService = {
     ])
     securityLog('member_role_changed', { workspaceId, userId, role })
     await invalidateWorkspaceCache(workspaceId)
+    // Le membre peut avoir le workspace ouvert : on le prévient en direct pour
+    // que son UI applique le nouveau rôle sans attendre un rechargement (une
+    // rétrogradation EDITOR → VIEWER doit verrouiller l'éditeur immédiatement).
+    emitToUser(userId, 'workspace:role', { workspaceId, role })
     return updated
   },
 
@@ -167,6 +172,9 @@ export const workspaceService = {
       prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } }),
     ])
     await invalidateWorkspaceCache(workspaceId)
+    // Même logique que la rétrogradation : l'ex-membre voit le workspace
+    // disparaître de son UI sans avoir à recharger. `role: null` = plus membre.
+    emitToUser(userId, 'workspace:role', { workspaceId, role: null })
   },
 
   /**

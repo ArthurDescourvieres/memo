@@ -3,6 +3,7 @@ import { WorkspaceRole } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { noteService } from '../services/note.service.js'
 import { attachAuth, getUserId } from './auth.js'
+import { setIo, userRoom } from './emitter.js'
 
 type SocketDataWithUser = {
   userId: string
@@ -49,9 +50,14 @@ async function presenceSnapshot(io: Server, noteId: string) {
 
 export function registerRealtime(io: Server): void {
   attachAuth(io)
+  setIo(io)
 
   io.on('connection', (socket: Socket) => {
     void hydrateUser(socket)
+
+    // Room personnelle : permet au monde HTTP (ex. changement de rôle par le
+    // propriétaire) de pousser un évènement à toutes les sessions du membre.
+    socket.join(userRoom(getUserId(socket)))
 
     socket.on('note:join', async (payload, ack) => {
       const noteId = String(payload?.noteId ?? '')

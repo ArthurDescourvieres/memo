@@ -38,6 +38,7 @@ export function FolderTree({
   canEdit,
   revealFolderId,
   revealNonce,
+  revealFocus = true,
 }: {
   workspaceId: string
   folders: Folder[]
@@ -49,6 +50,8 @@ export function FolderTree({
   canEdit: boolean
   revealFolderId: string | null
   revealNonce: number
+  /** Déplier ET focaliser la ligne (saut depuis la recherche), ou déplier seul. */
+  revealFocus?: boolean
 }) {
   const dialog = useDialog()
   const roots = useMemo(() => buildFolderTree(folders), [folders])
@@ -62,7 +65,11 @@ export function FolderTree({
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingFocus = useRef(false)
   const pendingReveal = useRef<string | null>(null)
-  const lastNonce = useRef(revealNonce)
+  // null = aucune révélation encore appliquée. Distinguer ce cas de « nonce 0 »
+  // permet d'honorer une cible déjà posée au montage : en mobile la sidebar est
+  // démontée quand la note est ouverte, elle doit se déplier au bon endroit en
+  // revenant dessus (typiquement après restauration au rechargement).
+  const lastNonce = useRef<number | null>(null)
 
   const openIds = useMemo(
     () => folders.filter((f) => expanded.has(f.id)).map((f) => f.id),
@@ -114,8 +121,8 @@ export function FolderTree({
     }
   })
 
-  // Dépliage « révélation » (saut via recherche), déclenché uniquement par un
-  // nouveau nonce — jamais par un clic de sélection.
+  // Dépliage « révélation » (saut via recherche, restauration au rechargement),
+  // déclenché par un nouveau nonce — jamais par un clic de sélection.
   useEffect(() => {
     if (revealNonce === lastNonce.current) return
     lastNonce.current = revealNonce
@@ -126,8 +133,10 @@ export function FolderTree({
       for (const id of path) next.add(id)
       return next
     })
-    pendingReveal.current = revealFolderId
-  }, [revealNonce, revealFolderId, folders])
+    // Le focus n'est pris que pour un saut demandé par l'utilisateur : une
+    // restauration ne doit pas voler le clavier à l'ouverture de l'app.
+    if (revealFocus) pendingReveal.current = revealFolderId
+  }, [revealNonce, revealFolderId, revealFocus, folders])
 
   // Une fois le chemin déplié et la ligne présente, on la focalise.
   useEffect(() => {
@@ -257,6 +266,8 @@ export function FolderTree({
         onAdd={canEdit ? () => setRootCreating((v) => !v) : undefined}
       />
       {rootCreating && canEdit && (
+        // gap-2 et pas gap-1 : l'anneau de focus (:focus-visible, 2px + 2px
+        // d'offset) déborde de 4px autour de l'input et toucherait le bouton.
         <form
           onSubmit={async (e) => {
             e.preventDefault()
@@ -273,7 +284,7 @@ export function FolderTree({
               setRootCreating(false)
             }
           }}
-          className="flex gap-1"
+          className="flex items-stretch gap-2"
         >
           <input
             value={rootName}

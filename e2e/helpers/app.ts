@@ -51,12 +51,20 @@ export async function createNoteFromEmptyState(page: Page): Promise<void> {
 }
 
 /**
- * Après un rechargement, l'état React (workspace/dossier/note sélectionnés) est
- * perdu : on rouvre la note via la sidebar — déplier le 1er dossier puis cliquer
- * la 1re note. Sur un compte de test il n'existe qu'un dossier et qu'une note.
+ * Ouvre la 1re note via la sidebar : déplier le 1er dossier puis cliquer la 1re
+ * note. Sur un compte de test il n'existe qu'un dossier et qu'une note.
+ *
+ * L'app restaure désormais la dernière note ouverte (stockage local) : après un
+ * rechargement — ou dans un contexte cloné via `storageState` — l'éditeur peut
+ * déjà être à l'écran. On ne re-clique alors rien : cliquer le dossier déplié le
+ * replierait et ferait disparaître la ligne de note.
  */
 export async function openFirstNoteViaSidebar(page: Page): Promise<void> {
-  await page.getByTestId('tree-folder').first().click()
-  await page.getByTestId('tree-note').first().click()
-  await expect(page.getByTestId('note-editor-content')).toBeVisible()
+  const editor = page.getByTestId('note-editor-content')
+  await expect(async () => {
+    if (await editor.isVisible()) return
+    await page.getByTestId('tree-folder').first().click()
+    await page.getByTestId('tree-note').first().click()
+    await expect(editor).toBeVisible()
+  }).toPass()
 }

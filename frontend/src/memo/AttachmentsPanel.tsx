@@ -18,7 +18,13 @@ function formatSize(bytes: number): string {
   return `${(bytes / MB).toFixed(1)} Mo`
 }
 
-export function AttachmentsPanel({ noteId }: { noteId: string }) {
+export function AttachmentsPanel({
+  noteId,
+  canEdit = true,
+}: {
+  noteId: string
+  canEdit?: boolean
+}) {
   const { data, isPending } = useNoteAttachments(noteId)
   const upload = useUploadAttachment(noteId)
   const remove = useDeleteAttachment(noteId)
@@ -45,23 +51,29 @@ export function AttachmentsPanel({ noteId }: { noteId: string }) {
     <section className="mt-6 flex flex-col gap-3 border-t border-[var(--color-line)] pt-4">
       <header className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-[1px] opacity-50">Pièces jointes</span>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-          className="hidden"
-          onChange={onChange}
-        />
-        <button
-          type="button"
-          onClick={onPickFile}
-          disabled={upload.isPending}
-          className={`${
-            upload.isPending ? 'cursor-wait' : 'cursor-pointer'
-          } rounded border border-[var(--color-accent-border)] bg-[var(--color-accent-soft)] px-2.5 py-1 text-xs text-inherit`}
-        >
-          {upload.isPending ? 'Envoi…' : '+ Ajouter un fichier'}
-        </button>
+        {/* Lecture seule : les pièces jointes restent consultables, mais aucune
+            action d'écriture n'est proposée (le serveur les refuserait). */}
+        {canEdit && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+              className="hidden"
+              onChange={onChange}
+            />
+            <button
+              type="button"
+              onClick={onPickFile}
+              disabled={upload.isPending}
+              className={`${
+                upload.isPending ? 'cursor-wait' : 'cursor-pointer'
+              } rounded border border-[var(--color-accent-border)] bg-[var(--color-accent-soft)] px-2.5 py-1 text-xs text-inherit`}
+            >
+              {upload.isPending ? 'Envoi…' : '+ Ajouter un fichier'}
+            </button>
+          </>
+        )}
       </header>
 
       {isPending ? (
@@ -71,7 +83,11 @@ export function AttachmentsPanel({ noteId }: { noteId: string }) {
       ) : (
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 p-0">
           {data.map((a) => (
-            <AttachmentItem key={a.id} attachment={a} onDelete={() => remove.mutate(a.id)} />
+            <AttachmentItem
+              key={a.id}
+              attachment={a}
+              onDelete={canEdit ? () => remove.mutate(a.id) : undefined}
+            />
           ))}
         </ul>
       )}
@@ -84,7 +100,7 @@ function AttachmentItem({
   onDelete,
 }: {
   attachment: Attachment
-  onDelete: () => void
+  onDelete?: () => void
 }) {
   const isImage = attachment.mimeType.startsWith('image/')
   const url = attachmentFileUrl(attachment.id)
@@ -111,13 +127,15 @@ function AttachmentItem({
         <span className="truncate text-xs">{attachment.filename}</span>
         <span className="text-[11px] opacity-50">{formatSize(attachment.size)}</span>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="cursor-pointer rounded border border-[var(--color-danger-border)] bg-transparent px-1.5 py-0.5 text-[11px] text-[var(--color-danger)]"
-      >
-        Supprimer
-      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="cursor-pointer rounded border border-[var(--color-danger-border)] bg-transparent px-1.5 py-0.5 text-[11px] text-[var(--color-danger)]"
+        >
+          Supprimer
+        </button>
+      )}
     </li>
   )
 }

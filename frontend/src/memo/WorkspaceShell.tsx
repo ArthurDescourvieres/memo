@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../lib/auth/AuthContext'
-import { useFolders, useWorkspaces, useDeleteWorkspace } from '../hooks/useWorkspaces'
+import { useFolders, useNote, useWorkspaces, useDeleteWorkspace } from '../hooks/useWorkspaces'
 import type { WorkspaceWithRole } from '../lib/types'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useRoleSync } from '../hooks/useRoleSync'
+import { readLastLocation, writeLastLocation } from '../lib/lastLocation'
 import { SidebarToggleButton, SidebarOpenButton } from './SidebarToggle'
-import { MobileBackButton } from './MobileBackButton'
 import { InviteModal } from './InviteSection'
 import { InviteAcceptBanner } from './InviteAcceptBanner'
 import { MembersModal } from './MembersModal'
@@ -27,9 +28,21 @@ export function WorkspaceShell() {
 
   const isMobile = useIsMobile()
   const workspaces = useWorkspaces()
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  // Un changement de rôle décidé par un propriétaire est poussé en direct
+  // (Socket.IO) : `currentRole` ci-dessous se met à jour sans rechargement.
+  useRoleSync()
+
+  // Dernière position connue (workspace / dossier / note), relue une seule fois
+  // au montage : l'app ne routant pas les notes dans l'URL, c'est elle qui
+  // rétablit l'écran quitté après un F5 au lieu de repartir de l'accueil.
+  const [restored] = useState(() => readLastLocation(user?.id ?? null))
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
+    restored?.workspaceId ?? null,
+  )
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(
+    restored?.folderId ?? null,
+  )
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(restored?.noteId ?? null)
   const [collapsed, setCollapsed] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [trashOpen, setTrashOpen] = useState(false)
@@ -41,30 +54,54 @@ export function WorkspaceShell() {
   const del = useDeleteWorkspace()
   // Sur mobile, un seul volet à la fois : 'list' = menu (workspaces/dossiers/notes),
   // 'editor' = note ouverte en plein écran. Ignoré sur desktop (les deux cohabitent).
-  const [mobilePane, setMobilePane] = useState<'list' | 'editor'>('list')
-  // Cible de « révélation » dans l'arbre : seule la recherche la met à jour, via
-  // un nonce, pour déplier le chemin sans interférer avec les clics de sélection.
-  const [reveal, setReveal] = useState<{ folderId: string | null; nonce: number }>({
-    folderId: null,
-    nonce: 0,
-  })
+  const [mobilePane, setMobilePane] = useState<'list' | 'editor'>(
+    restored?.noteId ? 'editor' : 'list',
+  )
+  // Cible de « révélation » dans l'arbre : recherche et restauration la mettent
+  // à jour, via un nonce, pour déplier le chemin sans interférer avec les clics
+  // de sélection. `focus` distingue le saut demandé (recherche, on focalise la
+  // ligne) de la restauration silencieuse au rechargement.
+  const [reveal, setReveal] = useState<{
+    folderId: string | null
+    nonce: number
+    focus: boolean
+  }>({ folderId: null, nonce: 0, focus: true })
 
-  // Auto-pick first workspace once loaded.
+  // Premier workspace par défaut — et repli sur celui-ci si le workspace
+  // restauré n'existe plus (supprimé, accès révoqué depuis la dernière visite).
   useEffect(() => {
-    if (!selectedWorkspaceId && workspaces.data && workspaces.data.length > 0) {
-      setSelectedWorkspaceId(workspaces.data[0].id)
-    }
+    const list = workspaces.data
+    if (!list || list.length === 0) return
+    if (selectedWorkspaceId && list.some((w) => w.id === selectedWorkspaceId)) return
+    setSelectedWorkspaceId(list[0].id)
   }, [workspaces.data, selectedWorkspaceId])
 
   const folders = useFolders(selectedWorkspaceId)
 
   // Reset de la sélection au changement de workspace. L'arbre gère ensuite
   // lui-même l'expansion et le chargement paresseux des notes par dossier.
+  // On compare au workspace précédent pour ne PAS effacer, au montage, la
+  // sélection tout juste restaurée depuis le stockage local.
+  const prevWorkspaceRef = useRef(selectedWorkspaceId)
   useEffect(() => {
+    if (prevWorkspaceRef.current === selectedWorkspaceId) return
+    prevWorkspaceRef.current = selectedWorkspaceId
     setSelectedFolderId(null)
     setSelectedNoteId(null)
-    setReveal((r) => ({ folderId: null, nonce: r.nonce }))
+    setReveal((r) => ({ ...r, folderId: null }))
   }, [selectedWorkspaceId])
+
+  // Restauration : une fois l'arbre chargé, on déplie le chemin du dossier
+  // quitté (même mécanisme que la recherche) pour que la note restaurée soit
+  // visible dans la sidebar sans redérouler les dossiers à la main. Une seule fois.
+  const revealRestored = useRef(Boolean(restored?.folderId))
+  useEffect(() => {
+    if (!revealRestored.current || !folders.data) return
+    revealRestored.current = false
+    const folderId = restored?.folderId
+    if (!folderId || !folders.data.some((f) => f.id === folderId)) return
+    setReveal((r) => ({ folderId, nonce: r.nonce + 1, focus: false }))
+  }, [folders.data, restored])
 
   // Si le dossier sélectionné disparaît de l'arbre (supprimé, ex. glissé vers la
   // corbeille), on abandonne la sélection : sinon l'écran d'accueil tenterait de
@@ -74,6 +111,21 @@ export function WorkspaceShell() {
       setSelectedFolderId(null)
     }
   }, [folders.data, selectedFolderId])
+
+  // La note ouverte porte son dossier : on mémorise ce dernier pour pouvoir
+  // rouvrir l'arbre au bon endroit, y compris quand la note a été ouverte
+  // depuis la recherche ou une sous-arborescence non « sélectionnée ».
+  // Même clé de cache que l'éditeur : aucune requête supplémentaire.
+  const openedNote = useNote(selectedNoteId)
+  const openedFolderId = openedNote.data?.id === selectedNoteId ? openedNote.data.folderId : null
+
+  useEffect(() => {
+    writeLastLocation(user?.id ?? null, {
+      workspaceId: selectedWorkspaceId,
+      folderId: openedFolderId ?? selectedFolderId,
+      noteId: selectedNoteId,
+    })
+  }, [user?.id, selectedWorkspaceId, selectedFolderId, selectedNoteId, openedFolderId])
 
   const currentRole = useMemo(
     () => workspaces.data?.find((w) => w.id === selectedWorkspaceId)?.role ?? null,
@@ -150,6 +202,15 @@ export function WorkspaceShell() {
           >
             <header className="flex items-center gap-2">
               {!isMobile && <SidebarToggleButton onClick={() => setCollapsed(true)} />}
+              {/* En mobile, le panneau couvre l'écran : le même bouton le
+                  referme et ramène sur la note ouverte, sans avoir à
+                  redérouler dossiers et sous-dossiers pour la retrouver. */}
+              {isMobile && selectedNoteId && (
+                <SidebarToggleButton
+                  onClick={() => setMobilePane('editor')}
+                  label="Revenir à la note"
+                />
+              )}
               <strong>Memo</strong>
             </header>
 
@@ -168,7 +229,7 @@ export function WorkspaceShell() {
                   workspaceId={selectedWorkspaceId}
                   onPick={(hit) => {
                     setSelectedFolderId(hit.folderId)
-                    setReveal((r) => ({ folderId: hit.folderId, nonce: r.nonce + 1 }))
+                    setReveal((r) => ({ folderId: hit.folderId, nonce: r.nonce + 1, focus: true }))
                     openNote(hit.id)
                   }}
                 />
@@ -187,6 +248,7 @@ export function WorkspaceShell() {
                   canEdit={canEdit}
                   revealFolderId={reveal.folderId}
                   revealNonce={reveal.nonce}
+                  revealFocus={reveal.focus}
                 />
               )}
             </div>
@@ -233,10 +295,18 @@ export function WorkspaceShell() {
               : 'min-w-0 flex-1 overflow-auto p-8'
           }
         >
-          {isMobile && <MobileBackButton onClick={() => setMobilePane('list')} />}
+          {/* Même bouton (et même icône) qu'en desktop : c'est le panneau qu'on
+              affiche, pas une « page précédente ». */}
+          {isMobile && (
+            <SidebarOpenButton
+              visible
+              onClick={() => setMobilePane('list')}
+              className="left-[14px] top-[14px]"
+            />
+          )}
           <InviteAcceptBanner />
           {selectedNoteId ? (
-            <NoteEditor noteId={selectedNoteId} onUnavailable={handleNoteGone} />
+            <NoteEditor noteId={selectedNoteId} canEdit={canEdit} onUnavailable={handleNoteGone} />
           ) : (
             <EmptyState
               workspaceId={selectedWorkspaceId}

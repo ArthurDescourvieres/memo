@@ -29,6 +29,21 @@ export function useNoteAutosave(noteId: string | null) {
     }
   }, [mutation, noteId])
 
+  /**
+   * Abandonne la sauvegarde en attente sans l'envoyer. Utilisé quand l'écriture
+   * vient d'être interdite (rétrogradation en VIEWER) : le débounce en cours
+   * partirait vers un serveur qui répond 403, et l'UI afficherait « Erreur »
+   * pour une frappe désormais sans objet.
+   */
+  const cancel = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    pendingRef.current = null
+    setStatus('idle')
+  }, [])
+
   const schedule = useCallback(
     (patch: { title?: string; content?: TiptapDoc }) => {
       pendingRef.current = { ...(pendingRef.current ?? {}), ...patch }
@@ -49,5 +64,5 @@ export function useNoteAutosave(noteId: string | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId])
 
-  return { status, schedule, flush }
+  return { status, schedule, flush, cancel }
 }
