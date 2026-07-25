@@ -21,6 +21,8 @@
 	# the Hono backend. Caddy upgrades WebSocket connections automatically.
 	@backend path /api/* /socket.io/*
 	handle @backend {
+		# JSON/WebSocket traffic, not content pages — keep it out of search indexes.
+		header X-Robots-Tag "noindex, nofollow"
 		reverse_proxy api:3000
 	}
 
