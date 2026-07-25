@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronRight,
@@ -8,6 +7,7 @@ import {
   Folder,
   Image,
   Layers,
+  Lock,
   MoreHorizontal,
   PanelLeft,
   Play,
@@ -24,7 +24,6 @@ import {
 // qui embarquait TOUTE la bibliothèque dans le bundle (~894 kB).
 // N'ajouter ici que les icônes réellement utilisées par <MemoIcon name="..." />.
 const ICONS: Record<string, LucideIcon> = {
-  'arrow-left': ArrowLeft,
   check: Check,
   'chevron-down': ChevronDown,
   'chevron-right': ChevronRight,
@@ -33,6 +32,7 @@ const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
   image: Image,
   layers: Layers,
+  lock: Lock,
   'more-horizontal': MoreHorizontal,
   'panel-left': PanelLeft,
   play: Play,

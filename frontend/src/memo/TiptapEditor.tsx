@@ -49,6 +49,12 @@ export function TiptapEditor({
   useEffect(() => {
     if (!editor) return
     editor.setEditable(editable)
+    // Sans `contenteditable`, la zone n'est plus focalisable : on lui rend un
+    // tabindex pour qu'elle reçoive quand même le focus et les évènements
+    // clavier — l'appelant peut alors expliquer pourquoi la frappe n'écrit rien.
+    const dom = editor.view.dom
+    if (editable) dom.removeAttribute('tabindex')
+    else dom.setAttribute('tabindex', '0')
   }, [editor, editable])
 
   // Apply remote updates without re-firing onUpdate (avoid feedback loops).
@@ -80,7 +86,9 @@ export function TiptapEditor({
 
   return (
     <div className="tiptap-wrapper flex flex-col gap-3">
-      <Toolbar editor={editor} onUpload={handleUpload} uploading={upload.isPending} />
+      {/* En lecture seule, la barre d'outils n'aurait aucun effet : on la retire
+          plutôt que d'offrir des boutons morts. */}
+      {editable && <Toolbar editor={editor} onUpload={handleUpload} uploading={upload.isPending} />}
       <EditorContent editor={editor} className="tiptap-content" />
     </div>
   )

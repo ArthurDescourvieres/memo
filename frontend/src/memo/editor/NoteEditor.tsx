@@ -4,17 +4,25 @@ import { useNoteAutosave, type AutosaveStatus } from '../../hooks/useNoteAutosav
 import { useNoteRealtime, type Presence } from '../../hooks/useNoteRealtime'
 import { TiptapEditor } from '../TiptapEditor'
 import { AttachmentsPanel } from '../AttachmentsPanel'
+import { MemoIcon } from '../MemoIcon'
 import type { TiptapDoc } from '../../lib/types'
 
 export function NoteEditor({
   noteId,
+  canEdit,
   onUnavailable,
 }: {
   noteId: string
+  canEdit: boolean
   onUnavailable: () => void
 }) {
   const note = useNote(noteId)
   const autosave = useNoteAutosave(noteId)
+  const readOnly = !canEdit
+  // Info-bulle « pas les droits », affichée quand on tente d'écrire en lecture
+  // seule. Un compteur (et non un booléen) pour que chaque tentative relance
+  // l'apparition même si l'info-bulle est déjà visible.
+  const [denied, setDenied] = useState(0)
 
   const initialContent = useMemo(() => note.data?.content ?? null, [note.data?.id])
   const initialTitle = note.data?.title ?? ''
@@ -68,6 +76,14 @@ export function NoteEditor({
     }
   }, [])
 
+  // Rétrogradation en cours d'édition : la frappe déjà mise en file (débounce
+  // 2 s) serait refusée par le serveur et afficherait « Erreur ». On l'annule,
+  // le verrouillage de l'éditeur prend le relais.
+  useEffect(() => {
+    if (readOnly) autosave.cancel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly])
+
   // La note ouverte peut disparaître sous nos pieds : mise à la corbeille (par
   // glisser-déposer ou par un collaborateur) ou supprimée avec son dossier
   // parent. Dans tous ces cas on referme l'éditeur, sinon on continuerait
@@ -88,7 +104,17 @@ export function NoteEditor({
       <header className="flex items-center justify-between gap-4">
         <input
           value={title}
+          readOnly={readOnly}
+          aria-readonly={readOnly || undefined}
+          onKeyDown={(e) => {
+            // En lecture seule le champ n'accepte rien : on explique pourquoi
+            // dès la première touche « utile » (les flèches/copie restent muettes).
+            if (readOnly && !NAVIGATION_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey) {
+              setDenied((n) => n + 1)
+            }
+          }}
           onChange={(e) => {
+            if (readOnly) return
             markTyping()
             setTitle(e.target.value)
             autosave.schedule({ title: e.target.value })
@@ -96,26 +122,105 @@ export function NoteEditor({
           }}
           placeholder="Titre"
           data-testid="note-title-input"
-          className="flex-1 border-none bg-transparent text-[28px] font-bold text-inherit outline-none"
+          className={`flex-1 border-none bg-transparent text-[28px] font-bold text-inherit outline-none ${
+            readOnly ? 'cursor-default' : ''
+          }`}
         />
         <PresenceAvatars presence={realtime.presence} />
-        <SaveStatus status={autosave.status} />
+        {readOnly ? <ReadOnlyBadge /> : <SaveStatus status={autosave.status} />}
       </header>
 
-      <TiptapEditor
-        key={noteId}
-        noteId={noteId}
-        initialContent={initialContent}
-        remoteContent={remoteContent}
-        onChange={(content) => {
-          markTyping()
-          autosave.schedule({ content })
-          realtime.sendLive({ content })
-        }}
-      />
+      <div
+        className="relative"
+        // En lecture seule, toute tentative d'interaction avec la zone de texte
+        // — clic pour poser le curseur, puis frappe — est expliquée plutôt que
+        // silencieusement ignorée.
+        onPointerDown={readOnly ? () => setDenied((n) => n + 1) : undefined}
+        onKeyDown={
+          readOnly
+            ? (e) => {
+                if (!NAVIGATION_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey) {
+                  setDenied((n) => n + 1)
+                }
+              }
+            : undefined
+        }
+      >
+        <TiptapEditor
+          key={noteId}
+          noteId={noteId}
+          initialContent={initialContent}
+          remoteContent={remoteContent}
+          editable={!readOnly}
+          onChange={(content) => {
+            if (readOnly) return
+            markTyping()
+            autosave.schedule({ content })
+            realtime.sendLive({ content })
+          }}
+        />
+        {readOnly && <DeniedTooltip trigger={denied} />}
+      </div>
 
-      <AttachmentsPanel noteId={noteId} />
+      <AttachmentsPanel noteId={noteId} canEdit={canEdit} />
     </article>
+  )
+}
+
+/** Touches qui ne cherchent pas à modifier le texte (pas de refus à signaler). */
+const NAVIGATION_KEYS = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+  'Tab',
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'Escape',
+])
+
+function ReadOnlyBadge() {
+  return (
+    <span
+      data-testid="note-readonly-badge"
+      title="Vous consultez cette note en lecture seule"
+      className="flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-line-strong)] px-2 py-0.5 text-xs opacity-70"
+    >
+      <MemoIcon name="lock" size={12} />
+      Lecture seule
+    </span>
+  )
+}
+
+/**
+ * Info-bulle éphémère affichée sur une tentative d'écriture interdite.
+ * Réapparaît à chaque tentative : `trigger` est un compteur, pas un booléen.
+ */
+function DeniedTooltip({ trigger }: { trigger: number }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    if (trigger === 0) return
+    setVisible(true)
+    const id = window.setTimeout(() => setVisible(false), 3000)
+    return () => window.clearTimeout(id)
+  }, [trigger])
+
+  if (!visible) return null
+  return (
+    <div
+      role="status"
+      data-testid="note-readonly-tooltip"
+      className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-surface-strong)] px-3 py-2 text-xs text-[var(--color-text)] shadow-[0_2px_10px_var(--color-shadow)] backdrop-blur-[8px]"
+    >
+      Vous n’avez pas les droits pour modifier cette note (lecture seule).
+    </div>
   )
 }
 
