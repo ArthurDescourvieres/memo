@@ -33,10 +33,12 @@ export const rowActionClass =
   'shrink-0 cursor-pointer rounded border-none bg-transparent px-1.5 py-1 text-sm leading-none text-inherit opacity-40'
 
 export const smallInputClass =
-  'flex-1 rounded border border-[var(--color-line-strong)] bg-[var(--color-surface-strong)] px-1.5 py-1 text-xs text-inherit'
+  'min-w-0 flex-1 rounded border border-[var(--color-line-strong)] bg-[var(--color-surface-strong)] px-2 py-1 text-xs text-inherit'
 
+// `shrink-0` + largeur mini : le bouton garde une forme carrée lisible même
+// quand l'input occupe tout l'espace restant.
 export const smallButtonClass =
-  'cursor-pointer rounded border-none bg-[var(--color-accent)] px-2 text-sm text-[var(--color-on-accent)]'
+  'inline-flex w-7 shrink-0 cursor-pointer items-center justify-center rounded border-none bg-[var(--color-accent)] text-sm leading-none text-[var(--color-on-accent)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const loadingClass = 'text-xs opacity-40'
 
