@@ -83,17 +83,17 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # `npm audit` cannot exempt a single advisory: it is all-or-nothing on a
+      # severity level. audit-ci keeps the same high/critical gate but allows a
+      # documented, per-advisory allowlist — see the rationale written next to
+      # each entry in the config files. Scope is unchanged: full tree for the
+      # backend, production dependencies only for the frontend (build tooling is
+      # dev-only and never shipped; the image itself is scanned by Trivy).
       - name: Audit backend dependencies (high/critical)
-        working-directory: backend
-        run: npm audit --audit-level=high
+        run: npx audit-ci --config audit-ci.backend.jsonc
 
-      # Front build tooling (vite/esbuild) is dev-only and never shipped: the app
-      # is served as static assets by Caddy and the image is scanned by Trivy.
-      # We therefore gate on production dependencies here. The backend audit above
-      # stays full-tree (its only patched esbuild is compatible with tsx/vitest).
       - name: Audit frontend production dependencies (high/critical)
-        working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: npx audit-ci --config audit-ci.frontend.jsonc
 
       - name: Scan for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v2
