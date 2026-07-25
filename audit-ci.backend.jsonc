@@ -1,0 +1,12 @@
+{
+  // Barrière de vulnérabilités du backend — arbre complet (dev inclus) : le
+  // backend est exécuté tel quel en production, ses outils de dev accompagnent
+  // les tests d'intégration lancés en CI.
+  //
+  // Échoue à partir de « high », comme l'ancien `npm audit --audit-level=high`.
+  // Aucune exception : toute advisory high/critical doit être corrigée.
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "directory": "./backend",
+  "high": true,
+  "allowlist": [],
+}

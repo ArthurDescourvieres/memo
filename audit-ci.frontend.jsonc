@@ -1,0 +1,30 @@
+{
+  // Barrière de vulnérabilités du frontend — dépendances de production
+  // uniquement (`skip-dev`) : l'outillage de build (vite, esbuild) n'est jamais
+  // livré, l'app est servie en assets statiques par Caddy et l'image finale est
+  // scannée par Trivy.
+  //
+  // Échoue à partir de « high », comme l'ancien `npm audit --omit=dev
+  // --audit-level=high`.
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "directory": "./frontend",
+  "high": true,
+  "skip-dev": true,
+
+  // EXCEPTION — GHSA-qwww-vcr4-c8h2 (react-router, high)
+  // « RSC Mode CSRF Bypass Allows Action Execution Before 400 Response ».
+  //
+  // Non atteignable ici : la faille est dans le mode RSC (React Server
+  // Components) de React Router, qui suppose un serveur exécutant des actions.
+  // Memo est une SPA Vite rendue côté client et servie en statique — ni SSR, ni
+  // RSC, ni action serveur ; le code vulnérable n'est jamais chargé.
+  //
+  // Aucune version corrigée n'existe : l'advisory couvre 7.12.0 – 8.2.0 et
+  // 7.18.1 est la dernière version publiée. Le seul « correctif » proposé par
+  // npm est une rétrogradation en 7.11.0, soit sept versions mineures en
+  // arrière pour une faille hors périmètre.
+  //
+  // À réexaminer dès qu'une version corrigée paraît : retirer cette entrée et
+  // monter react-router. Ne pas élargir l'allowlist sans la même analyse.
+  "allowlist": ["GHSA-qwww-vcr4-c8h2"],
+}
