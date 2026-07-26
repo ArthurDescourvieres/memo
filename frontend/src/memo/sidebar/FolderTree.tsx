@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { DragEvent, KeyboardEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTreeData } from '../../hooks/useTreeData'
 import type { Folder } from '../../lib/types'
 import { ancestorFolderIds, buildFolderTree } from './buildFolderTree'
 import { flattenTree } from './flattenTree'
 import { resolveTreeKey } from './treeKeyboard'
-import { TreeRow, type TreeRowEdit, type TreeRowHandlers } from './TreeRow'
+import { TreeRow, type TreeRowDnd, type TreeRowEdit, type TreeRowHandlers } from './TreeRow'
 import { useDialog } from '../dialog/DialogProvider'
+import { AddMenu } from './AddMenu'
+import { getDragItem, hasDragItem, type DragItem } from './dragItem'
+import { canDropOn, type DropTarget } from './moveTarget'
 import {
   SectionHeader,
   sectionClass,
@@ -29,6 +32,7 @@ type CreateState = { parentId: string; kind: 'note' | 'folder'; value: string }
  */
 export function FolderTree({
   workspaceId,
+  workspaceName,
   folders,
   selectedFolderId,
   selectedNoteId,
@@ -41,6 +45,8 @@ export function FolderTree({
   revealFocus = true,
 }: {
   workspaceId: string
+  /** Titre du bandeau : l'arbre est celui de ce workspace. */
+  workspaceName: string
   folders: Folder[]
   selectedFolderId: string | null
   selectedNoteId: string | null
@@ -61,6 +67,10 @@ export function FolderTree({
   const [creating, setCreating] = useState<CreateState | null>(null)
   const [rootCreating, setRootCreating] = useState(false)
   const [rootName, setRootName] = useState('')
+  // Glisser-déposer : l'élément en cours de déplacement (lu au `dragstart` — le
+  // contenu du dataTransfer n'est lisible qu'au `drop`) et la cible survolée.
+  const [dragging, setDragging] = useState<DragItem | null>(null)
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingFocus = useRef(false)
@@ -196,6 +206,7 @@ export function FolderTree({
     },
     onStartCreate: (parentId, kind) => {
       setRenaming(null)
+      setRootCreating(false)
       setCreating({ parentId, kind, value: '' })
       toggle(parentId, true)
     },
@@ -226,6 +237,92 @@ export function FolderTree({
       })
       if (ok) data.deleteNote.mutate(id)
     },
+  }
+
+  /**
+   * Applique un dépôt. La cible est revalidée ici (et non seulement au survol) :
+   * `dataTransfer` fait foi, un glissé peut venir d'ailleurs. Le serveur refait
+   * les mêmes contrôles — c'est lui qui tranche.
+   */
+  const applyDrop = async (e: DragEvent, target: DropTarget) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDropTarget(null)
+    setDragging(null)
+    const item = getDragItem(e)
+    if (!item || !canDropOn(item, target, folders)) return
+    try {
+      if (target.kind === 'root') {
+        await data.moveFolder.mutateAsync({ id: item.id, targetParentId: null })
+        return
+      }
+      if (item.kind === 'note') {
+        await data.moveNote.mutateAsync({ id: item.id, targetFolderId: target.id })
+      } else {
+        await data.moveFolder.mutateAsync({ id: item.id, targetParentId: target.id })
+      }
+      // Déplier la cible : l'élément déposé reste sous les yeux.
+      toggle(target.id, true)
+    } catch {
+      void dialog.alert({ message: 'Le déplacement a échoué.', variant: 'danger' })
+    }
+  }
+
+  /** Autorise le dépôt (et donc le curseur « move ») si la cible est valide. */
+  const allowDrop = (e: DragEvent, target: DropTarget) => {
+    if (!hasDragItem(e) || !dragging || !canDropOn(dragging, target, folders)) return false
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    return true
+  }
+
+  const dnd: TreeRowDnd = {
+    dropFolderId: dropTarget?.kind === 'folder' ? dropTarget.id : null,
+    onDragStart: (item) => {
+      setDragging(item)
+      setRenaming(null)
+    },
+    onDragEnd: () => {
+      setDragging(null)
+      setDropTarget(null)
+    },
+    onDragOverFolder: (e, folderId) => {
+      if (allowDrop(e, { kind: 'folder', id: folderId })) {
+        setDropTarget({ kind: 'folder', id: folderId })
+      }
+    },
+    onDragLeaveFolder: (e, folderId) => {
+      // Les enfants de la ligne (chevron, boutons) émettent aussi `dragleave` :
+      // ne relâcher la cible que si le pointeur quitte vraiment la ligne.
+      if (e.currentTarget.contains(e.relatedTarget as Node)) return
+      setDropTarget((t) => (t?.kind === 'folder' && t.id === folderId ? null : t))
+    },
+    onDropFolder: (e, folderId) => void applyDrop(e, { kind: 'folder', id: folderId }),
+  }
+
+  // Une note vit forcément dans un dossier : la création depuis le bandeau vise
+  // le dossier sélectionné, sinon le premier dossier racine, et en crée un au
+  // besoin — même repli que l'écran d'accueil (EmptyState).
+  /** Ouvre le champ de création d'un dossier racine (sous le bandeau). */
+  const openRootFolderForm = () => {
+    setCreating(null)
+    setRenaming(null)
+    setRootCreating(true)
+  }
+
+  const startRootNote = async () => {
+    let targetId = selectedFolderId ?? roots[0]?.folder.id ?? null
+    if (!targetId) {
+      try {
+        targetId = (await data.createFolder.mutateAsync({ name: 'Mes notes' })).id
+      } catch {
+        void dialog.alert({ message: 'La création a échoué.', variant: 'danger' })
+        return
+      }
+    }
+    onSelectFolder(targetId)
+    handlers.onStartCreate(targetId, 'note')
   }
 
   const edit: TreeRowEdit = {
@@ -259,11 +356,40 @@ export function FolderTree({
     }
   }
 
+  // Le bandeau fait aussi office de zone de dépôt « racine » : y déposer un
+  // sous-dossier le sort de son parent. (Pas les notes : elles ont toujours un
+  // dossier.) Le liseré pointillé n'apparaît que pendant un glissé recevable.
+  const rootTarget: DropTarget = { kind: 'root' }
+  const rootDroppable = Boolean(dragging && canDropOn(dragging, rootTarget, folders))
+  const rootHovered = dropTarget?.kind === 'root'
+
   return (
     <section className={sectionClass}>
       <SectionHeader
-        title="Dossiers"
-        onAdd={canEdit ? () => setRootCreating((v) => !v) : undefined}
+        title={workspaceName}
+        action={
+          canEdit ? (
+            <AddMenu
+              onCreateNote={() => void startRootNote()}
+              onCreateFolder={openRootFolderForm}
+            />
+          ) : undefined
+        }
+        className={
+          rootDroppable
+            ? `outline outline-2 -outline-offset-2 outline-dashed outline-[var(--color-accent)] ${
+                rootHovered ? 'bg-[var(--color-accent-soft)]' : 'opacity-100'
+              }`
+            : ''
+        }
+        onDragOver={(e) => {
+          if (allowDrop(e, rootTarget)) setDropTarget(rootTarget)
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return
+          setDropTarget((t) => (t?.kind === 'root' ? null : t))
+        }}
+        onDrop={(e) => void applyDrop(e, rootTarget)}
       />
       {rootCreating && canEdit && (
         // gap-2 et pas gap-1 : l'anneau de focus (:focus-visible, 2px + 2px
@@ -339,6 +465,7 @@ export function FolderTree({
                   }}
                   handlers={handlers}
                   edit={edit}
+                  dnd={dnd}
                 />
               )
             })}

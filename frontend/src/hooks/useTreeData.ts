@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Note, Paginated } from '../lib/types'
+import type { Folder, Note, Paginated } from '../lib/types'
 import { useCreateFolder, useDeleteFolder, useUpdateFolder } from './useWorkspaces'
 import type { FlatNote } from '../memo/sidebar/flattenTree'
 
@@ -52,6 +52,29 @@ export function useTreeData(workspaceId: string, openIds: string[]) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 
+  // Déplacements (glisser-déposer dans l'arbre). Le serveur valide la cible :
+  // même workspace, et pas de cycle pour un dossier.
+  const moveFolder = useMutation({
+    mutationFn: ({ id, targetParentId }: { id: string; targetParentId: string | null }) =>
+      api<Folder>(`/api/workspaces/${workspaceId}/folders/${id}/move`, {
+        method: 'PATCH',
+        json: { targetParentId },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['folders', workspaceId] }),
+  })
+
+  const moveNote = useMutation({
+    mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string }) =>
+      api<Note>(`/api/notes/${id}/move`, { method: 'PATCH', json: { targetFolderId } }),
+    onSuccess: (_note, { id }) => {
+      // Les deux dossiers concernés changent de contenu : on invalide toutes les
+      // listes de notes. La note elle-même porte son `folderId` (la coquille s'en
+      // sert pour rouvrir l'arbre au bon endroit) : à rafraîchir aussi.
+      qc.invalidateQueries({ queryKey: ['notes'] })
+      qc.invalidateQueries({ queryKey: ['note', id] })
+    },
+  })
+
   const deleteNote = useMutation({
     mutationFn: (id: string) => api<void>(`/api/notes/${id}`, { method: 'DELETE' }),
     onSuccess: (_data, id) => {
@@ -70,5 +93,7 @@ export function useTreeData(workspaceId: string, openIds: string[]) {
     createNote,
     renameNote,
     deleteNote,
+    moveFolder,
+    moveNote,
   }
 }

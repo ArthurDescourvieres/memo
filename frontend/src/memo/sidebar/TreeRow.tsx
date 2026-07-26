@@ -1,8 +1,8 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import type { CSSProperties, DragEvent, KeyboardEvent, ReactNode } from 'react'
 import { ChevronRight, FilePlus, FolderPlus } from 'lucide-react'
 import type { FlatRow } from './flattenTree'
 import { smallInputClass } from './common'
-import { setDragItem } from './dragItem'
+import { setDragItem, type DragItem } from './dragItem'
 
 const INDENT = 12
 
@@ -15,6 +15,21 @@ export type TreeRowHandlers = {
   onStartCreate: (parentId: string, kind: 'note' | 'folder') => void
   onDeleteFolder: (id: string, name: string) => void
   onDeleteNote: (id: string, title: string) => void
+}
+
+/**
+ * Glisser-déposer d'une ligne vers un dossier. Une ligne de note prend pour
+ * cible son dossier conteneur : viser la liste des notes d'un dossier revient
+ * ainsi à viser le dossier, ce qui laisse une marge d'erreur au pointeur.
+ */
+export type TreeRowDnd = {
+  /** Dossier survolé par le glissé en cours (halo), ou null. */
+  dropFolderId: string | null
+  onDragStart: (item: DragItem) => void
+  onDragEnd: () => void
+  onDragOverFolder: (e: DragEvent, folderId: string) => void
+  onDragLeaveFolder: (e: DragEvent, folderId: string) => void
+  onDropFolder: (e: DragEvent, folderId: string) => void
 }
 
 export type TreeRowEdit = {
@@ -50,6 +65,7 @@ export function TreeRow({
   measureRef,
   handlers,
   edit,
+  dnd,
 }: {
   row: FlatRow
   index: number
@@ -60,6 +76,7 @@ export function TreeRow({
   measureRef: (el: HTMLDivElement | null) => void
   handlers: TreeRowHandlers
   edit: TreeRowEdit
+  dnd: TreeRowDnd
 }) {
   const common = { ref: measureRef, 'data-index': index, style } as const
 
@@ -99,6 +116,10 @@ export function TreeRow({
 
   const isRenaming = edit.renamingId === row.id
   const isFolder = row.kind === 'folder'
+  // Dossier visé par un dépôt sur cette ligne : le dossier lui-même, ou celui
+  // qui contient la note. Une note à la racine n'existe pas (cf. moveTarget).
+  const dropFolderId = isFolder ? row.id : row.parentId
+  const isDropTarget = dnd.dropFolderId === dropFolderId
 
   return (
     <div
@@ -111,16 +132,24 @@ export function TreeRow({
       aria-selected={isSelected}
       tabIndex={isActive ? 0 : -1}
       data-row-index={index}
-      // Glisser une ligne (hors renommage) vers la corbeille de la sidebar.
+      // Glisser une ligne (hors renommage) vers un autre dossier, ou vers la
+      // corbeille de la sidebar.
       draggable={canEdit && !isRenaming}
       onDragStart={(e) => {
         e.stopPropagation()
-        setDragItem(e, {
+        const item: DragItem = {
           kind: row.kind,
           id: row.id,
           name: isFolder ? row.folder.name : row.note.title,
-        })
+          parentId: row.parentId,
+        }
+        setDragItem(e, item)
+        dnd.onDragStart(item)
       }}
+      onDragEnd={dnd.onDragEnd}
+      onDragOver={(e) => dnd.onDragOverFolder(e, dropFolderId)}
+      onDragLeave={(e) => dnd.onDragLeaveFolder(e, dropFolderId)}
+      onDrop={(e) => dnd.onDropFolder(e, dropFolderId)}
       onFocus={() => handlers.setActiveIndex(index)}
       onClick={() => {
         if (isFolder) {
@@ -139,7 +168,11 @@ export function TreeRow({
     >
       <div
         className={`group my-[3px] flex cursor-pointer items-center gap-1 rounded-[6px] py-1.5 pr-1.5 text-[15px] ${
-          isSelected ? 'bg-[var(--color-accent-soft)]' : 'bg-transparent'
+          isSelected || isDropTarget ? 'bg-[var(--color-accent-soft)]' : 'bg-transparent'
+        } ${
+          isDropTarget
+            ? 'outline outline-2 -outline-offset-2 outline-dashed outline-[var(--color-accent)]'
+            : ''
         }`}
         style={{ paddingLeft: row.depth * INDENT + (isFolder ? 6 : 22) }}
       >

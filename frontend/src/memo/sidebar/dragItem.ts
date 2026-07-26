@@ -2,11 +2,21 @@ import type { DragEvent } from 'react'
 
 /**
  * Charge utile transportée lors d'un glisser-déposer d'une ligne de l'arbre
- * (dossier ou note) vers la corbeille. On passe par le `dataTransfer` natif —
- * et non par un état React — pour que la source (TreeRow) et la cible
- * (TrashDropTarget) communiquent sans dépendre de la hiérarchie des composants.
+ * (dossier ou note) vers la corbeille ou vers un autre dossier. On passe par le
+ * `dataTransfer` natif — et non par un état React — pour que la source (TreeRow)
+ * et les cibles (TrashDropTarget, autres lignes de l'arbre) communiquent sans
+ * dépendre de la hiérarchie des composants.
+ *
+ * `parentId` (dossier conteneur au départ, null pour un dossier racine) permet
+ * de rejeter un dépôt sans effet — sur le conteneur d'origine — sans avoir à
+ * retrouver l'élément dans l'arbre.
  */
-export type DragItem = { kind: 'folder' | 'note'; id: string; name: string }
+export type DragItem = {
+  kind: 'folder' | 'note'
+  id: string
+  name: string
+  parentId: string | null
+}
 
 // Type MIME custom : permet de distinguer nos lignes d'un drag quelconque et,
 // pendant `dragover`, de tester `dataTransfer.types` (le contenu, lui, n'est
