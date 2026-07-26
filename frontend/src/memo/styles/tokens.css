@@ -37,6 +37,9 @@
   --color-ink-shadow: oklch(0 0 0 / 0.32);
   --color-shadow: oklch(0 0 0 / 0.35);
 
+  /* Trait du quadrillage de fond (.lp-grid-bg) */
+  --color-grid-line: oklch(1 0 0 / 0.07);
+
   --color-text: oklch(0.97 0.004 152);
   --color-text-muted: oklch(0.82 0.008 152);
   --color-text-dim: oklch(0.66 0.012 152);
@@ -108,6 +111,8 @@
   --color-overlay-hi: oklch(0.2 0.02 152 / 0.1);
   --color-ink-shadow: oklch(0.3 0.03 152 / 0.18);
   --color-shadow: oklch(0.3 0.03 152 / 0.2);
+
+  --color-grid-line: oklch(0.2 0.02 152 / 0.09);
 
   --color-text: oklch(0.3 0.015 152);
   --color-text-muted: oklch(0.44 0.014 150);
