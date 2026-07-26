@@ -81,6 +81,7 @@ Le jour de la rédaction finale (S7), chaque chiffre du dossier = celui d'un rap
 - [x] `moveNote(noteId, targetFolderId)` — valide la cible même workspace (sinon `INVALID_TARGET` → 400). ✅ 16/06
 - [x] `moveFolder(folderId, targetParentId)` — même workspace + **anti-cycle** (refus de déplacer dans un descendant). ✅ 16/06
 - [x] Routes `PATCH /notes/:id/move` + `PATCH /workspaces/:id/folders/:id/move` + `requireRole(EDITOR)` + tests unitaires. ✅ 16/06
+- [x] **Front** : glisser-déposer dans l'arbre (note ou dossier vers un autre dossier, dossier vers le bandeau = retour à la racine), cibles invalides refusées au survol (`canDropOn`). ✅ 26/07
 
 **Propriété / membres** (`backend/src/services/workspace.service.ts`)
 - [x] `removeMember` révoque les sessions (incrément `tokenVersion`) — fait au 10/06.

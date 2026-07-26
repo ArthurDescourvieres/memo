@@ -127,10 +127,11 @@ export function WorkspaceShell() {
     })
   }, [user?.id, selectedWorkspaceId, selectedFolderId, selectedNoteId, openedFolderId])
 
-  const currentRole = useMemo(
-    () => workspaces.data?.find((w) => w.id === selectedWorkspaceId)?.role ?? null,
+  const currentWorkspace = useMemo(
+    () => workspaces.data?.find((w) => w.id === selectedWorkspaceId) ?? null,
     [workspaces.data, selectedWorkspaceId],
   )
+  const currentRole = currentWorkspace?.role ?? null
   const canEdit = currentRole === 'OWNER' || currentRole === 'EDITOR'
   const isOwner = currentRole === 'OWNER'
 
@@ -239,6 +240,9 @@ export function WorkspaceShell() {
                 <FolderTree
                   key={selectedWorkspaceId}
                   workspaceId={selectedWorkspaceId}
+                  // Le nom du workspace titre l'arbre : la liste des espaces est
+                  // en bas de la sidebar, réduite à des icônes.
+                  workspaceName={currentWorkspace?.name ?? 'Espace'}
                   folders={folders.data ?? []}
                   selectedFolderId={selectedFolderId}
                   selectedNoteId={selectedNoteId}

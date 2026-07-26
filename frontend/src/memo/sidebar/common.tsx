@@ -1,19 +1,30 @@
+import type { HTMLAttributes, ReactNode } from 'react'
+
 // Shared header + class names for the sidebar sections (Workspaces, Dossiers,
 // Notes). Extracted from WorkspaceShell so each section lives in its own file.
-export function SectionHeader({ title, onAdd }: { title: string; onAdd?: () => void }) {
+//
+// `action` reçoit le contrôle de droite (bouton, menu…) ; les gestionnaires de
+// drag sont relayés tels quels pour que l'appelant puisse faire du bandeau une
+// zone de dépôt (cf. FolderTree : déposer un dossier ici le remonte à la racine).
+export function SectionHeader({
+  title,
+  action,
+  className = '',
+  ...drag
+}: {
+  title: string
+  action?: ReactNode
+  className?: string
+} & Pick<HTMLAttributes<HTMLDivElement>, 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'>) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-[11px] uppercase tracking-[1px] opacity-50">{title}</span>
-      {onAdd && (
-        <button
-          type="button"
-          onClick={onAdd}
-          className="cursor-pointer border-none bg-transparent text-sm text-inherit opacity-60"
-          title={`Ajouter ${title.toLowerCase()}`}
-        >
-          +
-        </button>
-      )}
+    <div
+      {...drag}
+      className={`flex min-h-7 items-center justify-between gap-2 rounded-[6px] ${className}`}
+    >
+      <span className="truncate text-[11px] uppercase tracking-[1px] opacity-50" title={title}>
+        {title}
+      </span>
+      {action}
     </div>
   )
 }
