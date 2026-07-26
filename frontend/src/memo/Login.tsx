@@ -70,7 +70,7 @@ export function Login({
     <div className="lp-grid-bg grid min-h-screen place-items-center p-6 text-[var(--color-text)]">
       <form
         onSubmit={onSubmit}
-        className="flex w-full max-w-[360px] flex-col gap-3 rounded-xl bg-[var(--color-surface)] p-7 shadow-[0_8px_32px_var(--color-shadow)]"
+        className="flex w-full max-w-[360px] flex-col gap-3 rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-surface-3)] p-7 shadow-[0_8px_32px_var(--color-shadow)]"
       >
         {onBack && (
           <button
