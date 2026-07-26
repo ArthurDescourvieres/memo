@@ -100,8 +100,16 @@ export function FolderTree({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 38,
+    // Hauteur d'une ligne dossier/note ; sert aux lignes hors fenêtre de rendu,
+    // les autres sont mesurées (measureElement). Sous-estimer rogne le bas de
+    // la liste d'autant de pixels par ligne.
+    estimateSize: () => 41,
     overscan: 12,
+    // Sans clé stable, le cache de mesures est indexé par POSITION : replier un
+    // dossier ou vider la corbeille décale les lignes, et chacune hérite de la
+    // hauteur de celle qui occupait sa place — un repère « Vide » (24px) laissé
+    // sur une ligne de note (41px) raccourcit la liste et coupe le bas.
+    getItemKey: (index) => rows[index]?.key ?? index,
   })
 
   const toggle = (id: string, open?: boolean) => {
@@ -364,7 +372,11 @@ export function FolderTree({
   const rootHovered = dropTarget?.kind === 'root'
 
   return (
-    <section className={sectionClass}>
+    // `min-h-0 flex-1` : l'arbre occupe toute la hauteur laissée par la
+    // recherche dans la sidebar, au lieu d'un plafond fixe. `min-h-0` autorise
+    // la boîte à devenir plus courte que son contenu — sans quoi elle pousserait
+    // le reste de la sidebar hors de l'écran plutôt que de défiler.
+    <section className={`${sectionClass} min-h-0 flex-1`}>
       <SectionHeader
         title={workspaceName}
         action={
@@ -432,7 +444,7 @@ export function FolderTree({
         <div
           ref={scrollRef}
           onKeyDown={onKeyDown}
-          className="no-scrollbar max-h-[50vh] overflow-y-auto"
+          className="no-scrollbar min-h-0 flex-1 overflow-y-auto"
         >
           <div
             role="tree"

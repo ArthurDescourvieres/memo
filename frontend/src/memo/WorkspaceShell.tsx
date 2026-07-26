@@ -221,10 +221,12 @@ export function WorkspaceShell() {
               </div>
             )}
 
-            {/* -mx/px compensés : gutter interne pour que le halo de focus
-                (:focus-visible, outline + offset) des champs ne soit pas rogné
-                par le clip horizontal induit par overflow-y-auto. */}
-            <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1.5">
+            {/* Pas de défilement ici : c'est l'arbre qui défile, en occupant la
+                hauteur restante — sinon il se plafonnerait en laissant du vide
+                sous lui. -mx/px compensés : gutter interne pour que le halo de
+                focus (:focus-visible, outline + offset) des champs ne soit pas
+                rogné par le clip horizontal des conteneurs qui défilent. */}
+            <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-4 px-1.5">
               {selectedWorkspaceId && (
                 <SearchBox
                   workspaceId={selectedWorkspaceId}
