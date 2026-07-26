@@ -81,6 +81,9 @@
   will-change: transform;
 }
 
+/* Quadrillage de fond, partagé par la landing et les écrans d'authentification.
+   `isolation` garde le ::before (z-index -1) au-dessus du fond de la page mais
+   sous le contenu ; l'élément ne doit donc pas porter de background lui-même. */
 .lp-grid-bg {
   position: relative;
   isolation: isolate;
@@ -92,8 +95,8 @@
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.07) 1px, transparent 1px);
+    linear-gradient(to right, var(--color-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid-line) 1px, transparent 1px);
   background-size: 20px 20px;
   mask-image:
     repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
