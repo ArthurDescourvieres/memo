@@ -31,6 +31,11 @@ export function inviteLink(token: string): string {
   return `${APP_URL}/?invite=${encodeURIComponent(token)}`
 }
 
+/** Build the password-reset link from the server-side base URL (APP_URL). */
+export function resetLink(token: string): string {
+  return `${APP_URL}/reinitialiser-mot-de-passe?token=${encodeURIComponent(token)}`
+}
+
 // Minimal HTML escaping for values interpolated into the e-mail body. The
 // workspace name is user-controlled, so this prevents it from breaking out of
 // the markup.
@@ -121,6 +126,92 @@ export async function sendInvitationEmail(input: InvitationEmail): Promise<boole
     logger.error(
       { err: { message: (err as Error).message }, to: input.to },
       'invitation email failed',
+    )
+    return false
+  }
+}
+
+function buildResetText(link: string): string {
+  return [
+    'Vous avez demandé la réinitialisation du mot de passe de votre compte Memo.',
+    '',
+    'Ouvrez ce lien pour choisir un nouveau mot de passe :',
+    link,
+    '',
+    "Ce lien expire dans 1 heure et ne peut servir qu'une seule fois.",
+    "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.",
+  ].join('\n')
+}
+
+function buildResetHtml(link: string): string {
+  return `<!doctype html>
+<html lang="fr">
+  <body style="margin:0;background:#f4f4f5;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#18181b;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;padding:32px;">
+            <tr><td style="font-size:18px;font-weight:600;padding-bottom:12px;">Réinitialiser votre mot de passe</td></tr>
+            <tr><td style="font-size:14px;line-height:1.6;color:#3f3f46;padding-bottom:24px;">
+              Vous avez demandé la réinitialisation du mot de passe de votre compte Memo.
+              Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+            </td></tr>
+            <tr><td align="center" style="padding-bottom:24px;">
+              <a href="${link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;">Choisir un nouveau mot de passe</a>
+            </td></tr>
+            <tr><td style="font-size:12px;line-height:1.6;color:#71717a;">
+              Ce lien expire dans 1 heure et ne peut servir qu'une seule fois.
+              Si vous n'êtes pas à l'origine de cette demande, ignorez ce message :
+              votre mot de passe reste inchangé.
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
+}
+
+/**
+ * Send the password-reset e-mail. Like the invitation mail it never throws, so
+ * a SMTP outage can't turn the "forgot password" endpoint into a user-enumeration
+ * oracle (the controller answers the same thing either way).
+ *
+ * When SMTP is not configured the link is printed to the log *outside of
+ * production only*, so the flow stays testable locally — there is no copy-link
+ * fallback in the UI for a reset, unlike invitations. The URL is logged under
+ * `resetUrl` deliberately: it must stay out of production logs, hence the
+ * NODE_ENV guard (same invariant the secure-cookie flag already relies on).
+ */
+export async function sendPasswordResetEmail(input: {
+  to: string
+  token: string
+}): Promise<boolean> {
+  const link = resetLink(input.token)
+  const transport = getTransport()
+  if (!transport) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error({ to: input.to }, 'password reset email skipped (mailer not configured)')
+    } else {
+      logger.warn({ to: input.to, resetUrl: link }, 'password reset email skipped (dev: no SMTP)')
+    }
+    return false
+  }
+
+  try {
+    await transport.sendMail({
+      from: MAIL.from,
+      to: input.to,
+      subject: 'Réinitialisation de votre mot de passe Memo',
+      text: buildResetText(link),
+      html: buildResetHtml(link),
+    })
+    logger.info({ to: input.to }, 'password reset email sent')
+    return true
+  } catch (err) {
+    logger.error(
+      { err: { message: (err as Error).message }, to: input.to },
+      'password reset email failed',
     )
     return false
   }

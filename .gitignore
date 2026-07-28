@@ -57,6 +57,9 @@ npm-debug.log*
 *.db
 *.db-journal
 
+# Dumps de base (pg_dump local)
+*.dump
+
 .cursor/
 .claude/
 .gemini/

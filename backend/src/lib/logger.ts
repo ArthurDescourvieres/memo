@@ -65,6 +65,11 @@ export type SecurityEvent =
   | 'unauthorized'
   | 'access_denied'
   | 'member_role_changed'
+  | 'password_changed'
+  | 'password_change_failed'
+  | 'password_reset_requested'
+  | 'password_reset_completed'
+  | 'password_reset_invalid_token'
 
 export function securityLog(
   event: SecurityEvent | (string & {}),
