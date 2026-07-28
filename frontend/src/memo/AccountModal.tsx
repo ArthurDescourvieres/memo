@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth/AuthContext'
+import { ApiError } from '../lib/api'
 import { useExportAccount, useDeleteAccount } from '../hooks/useAccount'
+import { useChangePassword } from '../hooks/usePassword'
+import { PasswordInput } from './auth/PasswordInput'
 
 /**
  * Écran « Mon compte » : porte les deux droits RGPD démontrables côté UI —
@@ -89,6 +92,8 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
           </button>
         </section>
 
+        <ChangePasswordSection buttonBase={buttonBase} h3Base={h3Base} />
+
         <section className="border-t border-[var(--color-line)] pt-4">
           <h3 className={`${h3Base} text-[var(--color-danger)]`}>Supprimer mon compte</h3>
           <p className="text-[13px] opacity-75 leading-[1.6] mt-0 mb-2.5">
@@ -147,5 +152,140 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>,
     document.body,
+  )
+}
+
+const MIN_LENGTH = 12
+
+/**
+ * Changement de mot de passe depuis le compte connecté. Le mot de passe actuel
+ * est exigé par l'API : un jeton d'accès dérobé ne suffit donc pas à verrouiller
+ * le compte. En cas de succès le serveur déconnecte toutes les *autres* sessions
+ * et renvoie un jeton neuf pour celle-ci (géré par `useChangePassword`).
+ */
+function ChangePasswordSection({ buttonBase, h3Base }: { buttonBase: string; h3Base: string }) {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const changePassword = useChangePassword()
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setDone(false)
+
+    if (next !== confirm) {
+      setError('Les deux nouveaux mots de passe ne correspondent pas.')
+      return
+    }
+    if (next.length < MIN_LENGTH) {
+      setError(`Le nouveau mot de passe doit contenir au moins ${MIN_LENGTH} caractères.`)
+      return
+    }
+
+    try {
+      await changePassword.mutateAsync({ currentPassword: current, newPassword: next })
+      setCurrent('')
+      setNext('')
+      setConfirm('')
+      setDone(true)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const payload = err.payload as { error?: unknown }
+        if (err.status === 429) setError('Trop de tentatives. Patientez une minute.')
+        else if (typeof payload?.error === 'string') setError(payload.error)
+        else setError('Le changement a échoué. Réessayez.')
+      } else {
+        setError('Impossible de joindre le serveur.')
+      }
+    }
+  }
+
+  const describedBy = error ? 'password-change-error' : undefined
+
+  return (
+    <section className="border-t border-[var(--color-line)] pt-4">
+      <h3 className={h3Base}>Changer mon mot de passe</h3>
+      <p className="text-[13px] opacity-75 leading-[1.6] mt-0 mb-2.5">
+        {MIN_LENGTH} caractères minimum. Vos autres appareils seront déconnectés.
+      </p>
+
+      <form onSubmit={onSubmit} className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="password-current" className="text-xs opacity-70">
+            Mot de passe actuel
+          </label>
+          <PasswordInput
+            id="password-current"
+            value={current}
+            onChange={setCurrent}
+            autoComplete="current-password"
+            describedBy={describedBy}
+            invalid={Boolean(error)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="password-new" className="text-xs opacity-70">
+            Nouveau mot de passe
+          </label>
+          <PasswordInput
+            id="password-new"
+            value={next}
+            onChange={setNext}
+            autoComplete="new-password"
+            minLength={MIN_LENGTH}
+            describedBy={describedBy}
+            invalid={Boolean(error)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="password-confirm" className="text-xs opacity-70">
+            Confirmer le nouveau mot de passe
+          </label>
+          <PasswordInput
+            id="password-confirm"
+            value={confirm}
+            onChange={setConfirm}
+            autoComplete="new-password"
+            minLength={MIN_LENGTH}
+            describedBy={describedBy}
+            invalid={Boolean(error)}
+          />
+        </div>
+
+        {error && (
+          <div
+            id="password-change-error"
+            role="alert"
+            className="text-[12.5px] text-[var(--color-danger)]"
+          >
+            {error}
+          </div>
+        )}
+
+        {done && (
+          <div
+            role="status"
+            data-testid="password-change-done"
+            className="text-[12.5px] text-[var(--color-accent)]"
+          >
+            Mot de passe mis à jour.
+          </div>
+        )}
+
+        <button
+          type="submit"
+          data-testid="password-change-submit"
+          disabled={changePassword.isPending}
+          className={`${buttonBase} self-start border-none bg-[var(--color-accent)] text-[var(--color-on-accent)] disabled:opacity-60`}
+        >
+          {changePassword.isPending ? 'Modification…' : 'Changer mon mot de passe'}
+        </button>
+      </form>
+    </section>
   )
 }

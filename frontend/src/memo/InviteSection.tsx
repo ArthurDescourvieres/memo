@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useCreateInvitation, useInvitations, useRevokeInvitation } from '../hooks/useInvitations'
+import { useCreateInvitation, useInvitations } from '../hooks/useInvitations'
 import {
   ASSIGNABLE_ROLE_OPTIONS,
   createInviteErrorMessage,
@@ -17,7 +17,6 @@ const inputClass =
 
 // OWNER-only modale : inviter un membre par e-mail ou pseudo + rôle. Le serveur
 // envoie l'invitation par e-mail ; le lien copiable reste affiché en secours.
-// Liste et révoque les invitations en attente.
 export function InviteModal({
   workspaceId,
   onClose,
@@ -32,7 +31,6 @@ export function InviteModal({
 
   const invitations = useInvitations(workspaceId)
   const create = useCreateInvitation(workspaceId)
-  const revoke = useRevokeInvitation(workspaceId)
 
   const pending = invitations.data ?? []
 
@@ -139,18 +137,6 @@ export function InviteModal({
                   <span className="text-[11px] opacity-50">
                     {roleLabel(inv.role)} · expire le {formatExpiry(inv.expiresAt)}
                   </span>
-                </div>
-                <div className="flex flex-shrink-0 gap-1">
-                  <CopyButton token={inv.token} />
-                  <button
-                    type="button"
-                    onClick={() => revoke.mutate(inv.id)}
-                    disabled={revoke.isPending}
-                    title="Révoquer l’invitation"
-                    className="h-6 w-6 cursor-pointer rounded border border-[var(--color-line-strong)] bg-transparent text-sm leading-none text-inherit opacity-70"
-                  >
-                    ×
-                  </button>
                 </div>
               </li>
             ))}

@@ -39,3 +39,29 @@ export const loginRateLimit = rateLimit({ keyPrefix: 'login', limit: 5, windowSe
 
 // Throttle attachment uploads: 20 / minute / IP — limite l'abus du stockage (§7.3).
 export const uploadRateLimit = rateLimit({ keyPrefix: 'upload', limit: 20, windowSec: 60 })
+
+// Demande de réinitialisation : 5 / heure / IP. Empêche d'utiliser le formulaire
+// « mot de passe oublié » pour bombarder des boîtes mail ou balayer des adresses
+// à grande échelle (le service applique en plus un plafond par compte).
+export const passwordResetRateLimit = rateLimit({
+  keyPrefix: 'pwreset',
+  limit: 5,
+  windowSec: 60 * 60,
+})
+
+// Soumission du nouveau mot de passe (lien reçu par e-mail) : 10 / heure / IP.
+// Le jeton fait 256 bits, il n'est pas devinable — la limite couvre surtout
+// l'abus du point d'entrée (hachage argon2id, appel HIBP).
+export const passwordResetSubmitRateLimit = rateLimit({
+  keyPrefix: 'pwreset-submit',
+  limit: 10,
+  windowSec: 60 * 60,
+})
+
+// Changement de mot de passe : 5 / minute / IP, comme le login — le mot de passe
+// actuel y est exigé, ce point d'entrée est donc attaquable par force brute.
+export const passwordChangeRateLimit = rateLimit({
+  keyPrefix: 'pwchange',
+  limit: 5,
+  windowSec: 60,
+})

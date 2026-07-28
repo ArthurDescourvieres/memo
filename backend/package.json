@@ -17,7 +17,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "purge": "tsx src/jobs/purge-deactivated.ts"
+    "purge": "tsx src/jobs/purge-deactivated.ts",
+    "reset-password": "tsx src/jobs/generate-password-reset-link.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

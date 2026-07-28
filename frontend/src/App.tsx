@@ -15,6 +15,12 @@ const Login = lazy(() => import('./memo/Login').then((m) => ({ default: m.Login 
 const InviteGuestGate = lazy(() =>
   import('./memo/InviteGuestGate').then((m) => ({ default: m.InviteGuestGate })),
 )
+const ForgotPassword = lazy(() =>
+  import('./memo/auth/ForgotPassword').then((m) => ({ default: m.ForgotPassword })),
+)
+const ResetPassword = lazy(() =>
+  import('./memo/auth/ResetPassword').then((m) => ({ default: m.ResetPassword })),
+)
 const MentionsLegales = lazy(() =>
   import('./memo/legal/MentionsLegales').then((m) => ({ default: m.MentionsLegales })),
 )
@@ -56,10 +62,33 @@ export function App() {
           <Route path="/" element={<WorkspaceShell />} />
           <Route path="/mentions-legales" element={<MentionsLegales />} />
           <Route path="/confidentialite" element={<Confidentialite />} />
+          {/* Un lien de réinitialisation ouvert depuis une session déjà connectée
+              doit rester fonctionnel, sinon la redirection vers `/` donne
+              l'impression d'un lien cassé. */}
+          <Route path="/reinitialiser-mot-de-passe" element={<AuthedResetPassword />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
     </Suspense>
+  )
+}
+
+/**
+ * Réinitialisation ouverte alors qu'une session est active. La réinitialisation
+ * invalide toutes les sessions du compte : celle-ci ne survit pas non plus, on
+ * déconnecte donc explicitement avant de renvoyer vers l'écran de connexion.
+ */
+function AuthedResetPassword() {
+  const auth = useAuth()
+  return (
+    <ResetPassword
+      onLogin={async () => {
+        await auth.logout()
+        // Rechargement plutôt que `navigate` : l'URL porte encore le jeton
+        // consommé, et repasser en visiteur re-monterait cet écran-ci.
+        window.location.href = '/login'
+      }}
+    />
   )
 }
 
@@ -83,8 +112,17 @@ function PublicRoutes() {
             initialMode="login"
             onBack={() => navigate('/')}
             onSwitchMode={() => navigate('/register')}
+            onForgotPassword={() => navigate('/mot-de-passe-oublie')}
           />
         }
+      />
+      <Route
+        path="/mot-de-passe-oublie"
+        element={<ForgotPassword onBack={() => navigate('/')} onLogin={() => navigate('/login')} />}
+      />
+      <Route
+        path="/reinitialiser-mot-de-passe"
+        element={<ResetPassword onLogin={() => navigate('/login')} />}
       />
       <Route
         path="/register"
