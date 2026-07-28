@@ -1,19 +1,13 @@
 /**
- * Échappatoire administrateur pour la réinitialisation de mot de passe.
+ * Génère un lien de réinitialisation en ligne de commande, quand SMTP n'est pas
+ * configuré ou en dépannage :
  *
- *   npm run reset-password -- --email=user@example.com        (en local)
- *   docker compose exec api node dist/jobs/generate-password-reset-link.js --email=user@example.com   (en prod)
+ *   npm run reset-password -- --email=user@example.com
+ *   docker compose exec api node dist/jobs/generate-password-reset-link.js --email=…
  *
- * Sert quand SMTP n'est pas configuré (auto-hébergement sans mailer) ou en
- * dépannage ponctuel : quiconque a un accès shell au serveur a de toute façon
- * déjà accès à la base et à Redis, donc générer le jeton par ce biais n'ouvre
- * aucun privilège nouveau — contrairement à une route HTTP, qui exposerait la
- * même capacité à quiconque connaît un email.
- *
- * Le lien produit est celui envoyé par e-mail (`resetLink`) : mêmes propriétés
- * (jeton à usage unique, expiration 1 h). À transmettre à l'utilisateur par un
- * canal de confiance (l'admin l'a authentifié autrement, puisqu'il n'y a pas
- * eu d'e-mail).
+ * Volontairement hors HTTP : un accès shell donne déjà la base et Redis, donc
+ * rien de nouveau n'est ouvert, alors qu'une route exposerait la même capacité
+ * à quiconque connaît une adresse.
  */
 import { prisma } from '../lib/prisma.js'
 import { redis } from '../lib/redis.js'

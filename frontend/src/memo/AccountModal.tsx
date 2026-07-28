@@ -9,9 +9,8 @@ import { useChangePassword } from '../hooks/usePassword'
 import { PasswordInput } from './auth/PasswordInput'
 
 /**
- * Écran « Mon compte » : porte les deux droits RGPD démontrables côté UI —
- * portabilité (export JSON) et effacement (suppression du compte). Modale
- * autonome rendue en portail (le système Modal de MemoContext n'est pas monté).
+ * Porte les deux droits RGPD exposés dans l'UI : portabilité (export JSON) et
+ * effacement. Rendue en portail, le système de modales n'étant pas monté ici.
  */
 export function AccountModal({ onClose }: { onClose: () => void }) {
   const auth = useAuth()
@@ -158,10 +157,8 @@ export function AccountModal({ onClose }: { onClose: () => void }) {
 const MIN_LENGTH = 12
 
 /**
- * Changement de mot de passe depuis le compte connecté. Le mot de passe actuel
- * est exigé par l'API : un jeton d'accès dérobé ne suffit donc pas à verrouiller
- * le compte. En cas de succès le serveur déconnecte toutes les *autres* sessions
- * et renvoie un jeton neuf pour celle-ci (géré par `useChangePassword`).
+ * L'API exige le mot de passe actuel : un jeton dérobé ne suffit pas à
+ * verrouiller le compte. Les autres sessions tombent, celle-ci survit.
  */
 function ChangePasswordSection({ buttonBase, h3Base }: { buttonBase: string; h3Base: string }) {
   const [current, setCurrent] = useState('')

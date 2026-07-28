@@ -24,11 +24,9 @@ type RenameState = { id: string; kind: 'folder' | 'note'; value: string }
 type CreateState = { parentId: string; kind: 'note' | 'folder'; value: string }
 
 /**
- * Arborescence accessible ET virtualisée : l'arbre est aplati en liste linéaire
- * (flattenTree), seuls les ~éléments visibles sont rendus (@tanstack/react-virtual),
- * et la navigation clavier travaille sur les index (resolveTreeKey) puisque les
- * lignes hors écran n'existent pas dans le DOM. ARIA « tree » à plat : chaque
- * ligne porte aria-level / aria-expanded / aria-selected.
+ * Arbre accessible ET virtualisé : aplati en liste linéaire, seules les lignes
+ * visibles sont rendues. La navigation clavier travaille donc sur les index,
+ * puisque les lignes hors écran n'existent pas dans le DOM.
  */
 export function FolderTree({
   workspaceId,
@@ -45,7 +43,6 @@ export function FolderTree({
   revealFocus = true,
 }: {
   workspaceId: string
-  /** Titre du bandeau : l'arbre est celui de ce workspace. */
   workspaceName: string
   folders: Folder[]
   selectedFolderId: string | null
@@ -67,18 +64,16 @@ export function FolderTree({
   const [creating, setCreating] = useState<CreateState | null>(null)
   const [rootCreating, setRootCreating] = useState(false)
   const [rootName, setRootName] = useState('')
-  // Glisser-déposer : l'élément en cours de déplacement (lu au `dragstart` — le
-  // contenu du dataTransfer n'est lisible qu'au `drop`) et la cible survolée.
+  // Mémorisé au `dragstart` : le contenu du dataTransfer n'est lisible qu'au `drop`.
   const [dragging, setDragging] = useState<DragItem | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingFocus = useRef(false)
   const pendingReveal = useRef<string | null>(null)
-  // null = aucune révélation encore appliquée. Distinguer ce cas de « nonce 0 »
-  // permet d'honorer une cible déjà posée au montage : en mobile la sidebar est
-  // démontée quand la note est ouverte, elle doit se déplier au bon endroit en
-  // revenant dessus (typiquement après restauration au rechargement).
+  // `null` et non 0 : il faut honorer une cible déjà posée au montage. En mobile
+  // la sidebar est démontée pendant la lecture d'une note et doit se rouvrir au
+  // bon endroit en y revenant.
   const lastNonce = useRef<number | null>(null)
 
   const openIds = useMemo(
@@ -100,15 +95,12 @@ export function FolderTree({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    // Hauteur d'une ligne dossier/note ; sert aux lignes hors fenêtre de rendu,
-    // les autres sont mesurées (measureElement). Sous-estimer rogne le bas de
-    // la liste d'autant de pixels par ligne.
+    // Sous-estimer rogne le bas de la liste d'autant de pixels par ligne non mesurée.
     estimateSize: () => 41,
     overscan: 12,
     // Sans clé stable, le cache de mesures est indexé par POSITION : replier un
-    // dossier ou vider la corbeille décale les lignes, et chacune hérite de la
-    // hauteur de celle qui occupait sa place — un repère « Vide » (24px) laissé
-    // sur une ligne de note (41px) raccourcit la liste et coupe le bas.
+    // dossier décale les lignes et chacune hérite de la hauteur de la
+    // précédente occupante, ce qui raccourcit la liste.
     getItemKey: (index) => rows[index]?.key ?? index,
   })
 
@@ -128,8 +120,7 @@ export function FolderTree({
     rowVirtualizer.scrollToIndex(index, { align: 'auto' })
   }
 
-  // Focus différé : la ligne cible peut être hors écran (donc pas encore dans le
-  // DOM) ; on la focalise dès qu'elle est rendue après le scroll.
+  // Focus différé : la ligne cible peut ne pas être encore dans le DOM.
   useEffect(() => {
     if (!pendingFocus.current) return
     const el = scrollRef.current?.querySelector<HTMLElement>(`[data-row-index="${activeIdx}"]`)
@@ -139,8 +130,7 @@ export function FolderTree({
     }
   })
 
-  // Dépliage « révélation » (saut via recherche, restauration au rechargement),
-  // déclenché par un nouveau nonce — jamais par un clic de sélection.
+  // Dépliage déclenché par un nouveau nonce — jamais par un clic de sélection.
   useEffect(() => {
     if (revealNonce === lastNonce.current) return
     lastNonce.current = revealNonce
@@ -151,12 +141,11 @@ export function FolderTree({
       for (const id of path) next.add(id)
       return next
     })
-    // Le focus n'est pris que pour un saut demandé par l'utilisateur : une
-    // restauration ne doit pas voler le clavier à l'ouverture de l'app.
+    // Seul un saut demandé par l'utilisateur prend le focus : une restauration
+    // ne doit pas voler le clavier à l'ouverture de l'app.
     if (revealFocus) pendingReveal.current = revealFolderId
   }, [revealNonce, revealFolderId, revealFocus, folders])
 
-  // Une fois le chemin déplié et la ligne présente, on la focalise.
   useEffect(() => {
     const target = pendingReveal.current
     if (!target) return
@@ -248,9 +237,8 @@ export function FolderTree({
   }
 
   /**
-   * Applique un dépôt. La cible est revalidée ici (et non seulement au survol) :
-   * `dataTransfer` fait foi, un glissé peut venir d'ailleurs. Le serveur refait
-   * les mêmes contrôles — c'est lui qui tranche.
+   * La cible est revalidée ici et pas seulement au survol : un glissé peut
+   * venir d'ailleurs, `dataTransfer` fait foi. Le serveur retranche de toute façon.
    */
   const applyDrop = async (e: DragEvent, target: DropTarget) => {
     e.preventDefault()
@@ -269,14 +257,12 @@ export function FolderTree({
       } else {
         await data.moveFolder.mutateAsync({ id: item.id, targetParentId: target.id })
       }
-      // Déplier la cible : l'élément déposé reste sous les yeux.
-      toggle(target.id, true)
+      toggle(target.id, true) // l'élément déposé reste sous les yeux
     } catch {
       void dialog.alert({ message: 'Le déplacement a échoué.', variant: 'danger' })
     }
   }
 
-  /** Autorise le dépôt (et donc le curseur « move ») si la cible est valide. */
   const allowDrop = (e: DragEvent, target: DropTarget) => {
     if (!hasDragItem(e) || !dragging || !canDropOn(dragging, target, folders)) return false
     e.preventDefault()
@@ -301,24 +287,22 @@ export function FolderTree({
       }
     },
     onDragLeaveFolder: (e, folderId) => {
-      // Les enfants de la ligne (chevron, boutons) émettent aussi `dragleave` :
-      // ne relâcher la cible que si le pointeur quitte vraiment la ligne.
+      // Chevron et boutons émettent aussi `dragleave` : ne relâcher la cible que
+      // si le pointeur quitte vraiment la ligne.
       if (e.currentTarget.contains(e.relatedTarget as Node)) return
       setDropTarget((t) => (t?.kind === 'folder' && t.id === folderId ? null : t))
     },
     onDropFolder: (e, folderId) => void applyDrop(e, { kind: 'folder', id: folderId }),
   }
 
-  // Une note vit forcément dans un dossier : la création depuis le bandeau vise
-  // le dossier sélectionné, sinon le premier dossier racine, et en crée un au
-  // besoin — même repli que l'écran d'accueil (EmptyState).
-  /** Ouvre le champ de création d'un dossier racine (sous le bandeau). */
   const openRootFolderForm = () => {
     setCreating(null)
     setRenaming(null)
     setRootCreating(true)
   }
 
+  // Une note vit forcément dans un dossier : on vise le dossier sélectionné,
+  // sinon la première racine, et on en crée un au besoin.
   const startRootNote = async () => {
     let targetId = selectedFolderId ?? roots[0]?.folder.id ?? null
     if (!targetId) {
@@ -364,18 +348,15 @@ export function FolderTree({
     }
   }
 
-  // Le bandeau fait aussi office de zone de dépôt « racine » : y déposer un
-  // sous-dossier le sort de son parent. (Pas les notes : elles ont toujours un
-  // dossier.) Le liseré pointillé n'apparaît que pendant un glissé recevable.
+  // Le bandeau sert aussi de zone de dépôt « racine » : y déposer un sous-dossier
+  // le sort de son parent. Pas les notes, elles ont toujours un dossier.
   const rootTarget: DropTarget = { kind: 'root' }
   const rootDroppable = Boolean(dragging && canDropOn(dragging, rootTarget, folders))
   const rootHovered = dropTarget?.kind === 'root'
 
   return (
-    // `min-h-0 flex-1` : l'arbre occupe toute la hauteur laissée par la
-    // recherche dans la sidebar, au lieu d'un plafond fixe. `min-h-0` autorise
-    // la boîte à devenir plus courte que son contenu — sans quoi elle pousserait
-    // le reste de la sidebar hors de l'écran plutôt que de défiler.
+    // `min-h-0` autorise la boîte à devenir plus courte que son contenu, sans
+    // quoi elle pousserait le reste de la sidebar hors écran au lieu de défiler.
     <section className={`${sectionClass} min-h-0 flex-1`}>
       <SectionHeader
         title={workspaceName}
@@ -404,8 +385,7 @@ export function FolderTree({
         onDrop={(e) => void applyDrop(e, rootTarget)}
       />
       {rootCreating && canEdit && (
-        // gap-2 et pas gap-1 : l'anneau de focus (:focus-visible, 2px + 2px
-        // d'offset) déborde de 4px autour de l'input et toucherait le bouton.
+        // gap-2 et pas gap-1 : l'anneau de focus déborde de 4px et toucherait le bouton.
         <form
           onSubmit={async (e) => {
             e.preventDefault()

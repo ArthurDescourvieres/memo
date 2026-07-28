@@ -106,11 +106,7 @@ export const authController = {
     return c.json({ user }, 200)
   },
 
-  /**
-   * PATCH /api/auth/password — change le mot de passe du compte connecté.
-   * Renvoie un nouveau couple de jetons : la session courante reste ouverte,
-   * toutes les autres sont invalidées côté service.
-   */
+  /** Renvoie de nouveaux jetons : la session courante survit, les autres non. */
   async changePassword(c: AuthContext) {
     const body = await c.req.json()
     const result = changePasswordSchema.safeParse(body)
@@ -130,10 +126,9 @@ export const authController = {
       setRefreshCookie(c, refreshToken)
       return c.json({ accessToken, user }, 200)
     } catch (e) {
-      // 403 et non 401 : la session est valide, c'est le champ « mot de passe
-      // actuel » qui est faux. Un 401 déclencherait le rafraîchissement
-      // automatique puis un second essai côté client (lib/api), consommant deux
-      // jetons de rate limit par saisie erronée.
+      // 403 et non 401 : la session est valide, c'est la saisie qui est fausse.
+      // Un 401 relancerait le rafraîchissement puis un second essai (lib/api),
+      // soit deux jetons de rate limit brûlés par erreur de frappe.
       if (hasCode(e, 'UNAUTHORIZED'))
         return c.json(
           { error: 'Mot de passe actuel incorrect.', code: 'BAD_CURRENT_PASSWORD' },
@@ -155,17 +150,13 @@ export const authController = {
   },
 
   /**
-   * POST /api/auth/forgot-password — envoie le lien de réinitialisation.
-   *
-   * Répond toujours 202 avec le même message, que l'adresse corresponde ou non
-   * à un compte : le formulaire ne doit pas permettre de tester l'existence
-   * d'un compte (§ anti-énumération).
+   * Toujours 202 avec le même message, adresse connue ou non : le formulaire ne
+   * doit pas servir à tester l'existence d'un compte. Même une adresse mal
+   * formée reçoit cette réponse, ce qui évite un second cas à traiter dans l'UI.
    */
   async forgotPassword(c: Context) {
     const body = await c.req.json()
     const result = forgotPasswordSchema.safeParse(body)
-    // Même une adresse mal formée reçoit la réponse générique — répondre 400
-    // ici ne fuite rien, mais garder une réponse unique simplifie l'UI.
     if (result.success) {
       await authService.requestPasswordReset(result.data.email)
     }
@@ -180,9 +171,8 @@ export const authController = {
   },
 
   /**
-   * POST /api/auth/reset-password — applique le nouveau mot de passe à partir
-   * du jeton reçu par e-mail. Aucune session n'est ouverte : l'utilisateur se
-   * reconnecte, ce qui vérifie au passage qu'il a bien mémorisé son mot de passe.
+   * Aucune session n'est ouverte : l'utilisateur se reconnecte, ce qui vérifie
+   * au passage qu'il a mémorisé son nouveau mot de passe.
    */
   async resetPassword(c: Context) {
     const body = await c.req.json()

@@ -1,7 +1,6 @@
 import DOMPurify from 'dompurify'
 
-// Tag whitelist aligned with §8.1, plus <mark> for search highlighting and
-// <span> for the design-system demo blocks.
+// Liste blanche alignée sur §8.1, plus <mark> pour le surlignage de recherche.
 const ALLOWED_TAGS = [
   'h1',
   'h2',
@@ -24,24 +23,16 @@ const ALLOWED_TAGS = [
   'mark',
   'span',
 ]
-// No `style` (nor `class`): the only consumer is the search snippet
-// (SearchBox), whose sanitised markup is just <mark> highlighting. Allowing
-// inline styles would reopen a CSS injection / data-exfiltration vector
-// (e.g. `background:url(https://attacker/beacon)`); the highlight colour now
-// lives in CSS (.search-snippet mark) instead of an inline style.
+// Ni `style` ni `class` : le style en ligne rouvrirait une injection CSS
+// exfiltrante (`background:url(https://attaquant/…)`). La couleur du surlignage
+// vit dans la feuille de style.
 const ALLOWED_ATTR = ['href', 'src', 'alt', 'title']
 
-// Bind the purifier to the live window explicitly. The default auto-bound
-// instance can degrade to a no-op when the global window isn't ready at import
-// time (notably under the test DOM); binding at module load keeps it active.
+// Lié explicitement à `window` : l'instance auto-liée par défaut peut se
+// dégrader en no-op si le global n'est pas prêt à l'import (cas du DOM de test).
 const purifier = DOMPurify(window)
 
-/**
- * Sanitise an HTML string before it is injected via dangerouslySetInnerHTML
- * (§8.1): strips scripts, event-handler attributes and javascript:/data: URLs,
- * keeping only the whitelisted tags/attributes. URLs are limited to
- * http(s)/mailto or app-relative paths.
- */
+/** À passer sur tout HTML injecté via `dangerouslySetInnerHTML` (§8.1). */
 export function sanitizeHtml(dirty: string): string {
   return purifier.sanitize(dirty, {
     ALLOWED_TAGS,

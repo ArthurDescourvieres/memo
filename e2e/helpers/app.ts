@@ -1,13 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 import type { TestUser } from './users'
 
-/** data-testid de la coquille applicative connectée (rendue à la route `/`). */
 const APP_SHELL = 'workspace-shell'
 
-/**
- * Inscription via l'UI puis attente de l'arrivée dans l'app connectée.
- * Champs : #login-name, #login-identifier, #login-password (cf. Login.tsx).
- */
 export async function registerViaUi(page: Page, user: TestUser): Promise<void> {
   await page.goto('/register')
   await page.locator('#login-name').fill(user.name)
@@ -17,10 +12,7 @@ export async function registerViaUi(page: Page, user: TestUser): Promise<void> {
   await expect(page.getByTestId(APP_SHELL)).toBeVisible()
 }
 
-/**
- * Remplit et soumet le formulaire de connexion SANS présumer du résultat.
- * Utilisé quand l'appelant veut inspecter la réponse (ex. attendre un 403).
- */
+/** Soumet sans présumer du résultat : l'appelant inspecte la réponse lui-même. */
 export async function fillLogin(page: Page, identifier: string, password: string): Promise<void> {
   await page.goto('/login')
   await page.locator('#login-identifier').fill(identifier)
@@ -28,10 +20,6 @@ export async function fillLogin(page: Page, identifier: string, password: string
   await page.getByTestId('auth-submit').click()
 }
 
-/**
- * Crée un workspace depuis l'écran d'accueil (compte neuf) et attend la
- * fermeture de la modale — le nouveau workspace devient courant.
- */
 export async function createWorkspace(page: Page, name: string): Promise<void> {
   await page.getByTestId('empty-action-workspace').click()
   await page.getByTestId('workspace-name-input').fill(name)
@@ -39,25 +27,16 @@ export async function createWorkspace(page: Page, name: string): Promise<void> {
   await expect(page.getByTestId('workspace-name-input')).toHaveCount(0)
 }
 
-/**
- * Crée une note depuis l'écran d'accueil (crée un dossier « Mes notes » au
- * besoin) et attend l'ouverture de l'éditeur Tiptap.
- */
 export async function createNoteFromEmptyState(page: Page): Promise<void> {
-  // `empty-action-note` n'apparaît qu'une fois le rôle OWNER résolu (refetch de
-  // la liste des workspaces) : Playwright patiente automatiquement.
+  // Le bouton n'apparaît qu'une fois le rôle OWNER résolu ; Playwright patiente.
   await page.getByTestId('empty-action-note').click()
   await expect(page.getByTestId('note-editor-content')).toBeVisible()
 }
 
 /**
- * Ouvre la 1re note via la sidebar : déplier le 1er dossier puis cliquer la 1re
- * note. Sur un compte de test il n'existe qu'un dossier et qu'une note.
- *
- * L'app restaure désormais la dernière note ouverte (stockage local) : après un
- * rechargement — ou dans un contexte cloné via `storageState` — l'éditeur peut
- * déjà être à l'écran. On ne re-clique alors rien : cliquer le dossier déplié le
- * replierait et ferait disparaître la ligne de note.
+ * L'app restaurant la dernière note ouverte, l'éditeur peut déjà être à l'écran.
+ * Ne rien recliquer alors : le dossier déjà déplié se replierait, emportant la
+ * ligne de note avec lui.
  */
 export async function openFirstNoteViaSidebar(page: Page): Promise<void> {
   const editor = page.getByTestId('note-editor-content')

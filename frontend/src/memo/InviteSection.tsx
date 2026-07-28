@@ -15,8 +15,8 @@ type InvitableRole = 'EDITOR' | 'VIEWER'
 const inputClass =
   'min-w-0 rounded border border-[var(--color-line-strong)] bg-[var(--color-surface-strong)] px-2 py-1.5 text-xs text-inherit outline-none'
 
-// OWNER-only modale : inviter un membre par e-mail ou pseudo + rôle. Le serveur
-// envoie l'invitation par e-mail ; le lien copiable reste affiché en secours.
+// Réservée au propriétaire. Le serveur envoie l'invitation par e-mail ; le lien
+// copiable reste affiché en secours juste après la création.
 export function InviteModal({
   workspaceId,
   onClose,

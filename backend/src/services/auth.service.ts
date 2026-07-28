@@ -35,17 +35,13 @@ function sanitizeUser(user: SafeUser & { password: string }): SafeUser {
   return safe
 }
 
-/**
- * Ajoute un refresh token à la liste noire jusqu'à sa date d'expiration. Extrait
- * de `logout` pour être réutilisé par le changement de mot de passe, qui coupe
- * lui aussi la session en cours avant d'en ouvrir une nouvelle.
- */
+/** Liste noire jusqu'à l'expiration du jeton — au-delà, la signature suffit à le rejeter. */
 async function blacklistRefreshToken(refreshToken: string): Promise<void> {
   let payload: { sub: string; exp: number }
   try {
     payload = (await verify(refreshToken, JWT_SECRET, 'HS256')) as typeof payload
   } catch {
-    return // token already invalid, nothing to blacklist
+    return
   }
 
   const ttl = payload.exp - Math.floor(Date.now() / 1000)
@@ -77,7 +73,6 @@ export const authService = {
       throw Object.assign(new Error('Name already in use'), { code: 'NAME_CONFLICT' })
     }
 
-    // Reject passwords known to be compromised (HIBP k-anonymity, §5.3).
     if (await isPasswordPwned(input.password)) {
       throw Object.assign(new Error('Password found in a known data breach'), { code: 'PWNED' })
     }
@@ -107,14 +102,13 @@ export const authService = {
       throw Object.assign(new Error('Invalid credentials'), { code: 'UNAUTHORIZED' })
     }
 
-    // Un compte désactivé (suppression RGPD en cours, période de grâce 30 j) ne
-    // peut plus se reconnecter (§ RGPD — droit à l'effacement).
+    // Suppression RGPD en cours (période de grâce 30 j) : plus de reconnexion.
     if (user.deactivatedAt) {
       securityLog('login_deactivated', { userId: user.id })
       throw Object.assign(new Error('Account deactivated'), { code: 'DEACTIVATED' })
     }
 
-    // Transparently upgrade legacy bcrypt hashes to argon2id on login (§5.2).
+    // Migration silencieuse des anciens hachages bcrypt vers argon2id (§5.2).
     if (needsRehash(user.password)) {
       const upgraded = await hashPassword(input.password)
       await prisma.user.update({ where: { id: user.id }, data: { password: upgraded } })
@@ -129,8 +123,7 @@ export const authService = {
     try {
       payload = (await verify(refreshToken, JWT_SECRET, 'HS256')) as typeof payload
     } catch {
-      // Bad signature / expired / malformed — includes tokens signed with a
-      // foreign key (§10).
+      // Signature invalide, expiré, malformé — dont les jetons signés ailleurs.
       securityLog('refresh_invalid')
       throw Object.assign(new Error('Unauthorized'), { code: 'UNAUTHORIZED' })
     }
@@ -141,8 +134,7 @@ export const authService = {
       throw Object.assign(new Error('Unauthorized'), { code: 'UNAUTHORIZED' })
     }
 
-    // Global invalidation (§5.5): the token's version must still match the
-    // user's current tokenVersion, otherwise all their sessions were revoked.
+    // Une `tokenVersion` décalée = toutes les sessions ont été révoquées depuis (§5.5).
     const user = await prisma.user.findUnique({ where: { id: payload.sub } })
     if (!user || user.tokenVersion !== payload.tokenVersion || user.deactivatedAt) {
       securityLog('refresh_version_mismatch', { userId: payload.sub })
@@ -164,15 +156,9 @@ export const authService = {
   },
 
   /**
-   * Changement de mot de passe depuis un compte connecté (§5.3).
-   *
-   * Le mot de passe courant est exigé : un jeton d'accès volé (XSS, poste non
-   * verrouillé) ne suffit donc pas à s'emparer définitivement du compte.
-   *
-   * Effet sur les sessions : `tokenVersion` est incrémenté, ce qui invalide tous
-   * les refresh tokens émis jusque-là — l'attaquant éventuel est déconnecté
-   * partout. La session qui a fait la demande reçoit immédiatement un nouveau
-   * couple de jetons, elle seule survit au changement.
+   * Exiger le mot de passe courant : un jeton d'accès volé ne suffit pas à
+   * s'emparer du compte. L'incrément de `tokenVersion` déconnecte partout
+   * ailleurs, seule la session appelante repart avec des jetons frais.
    */
   async changePassword(userId: string, input: ChangePasswordInput, currentRefreshToken?: string) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
@@ -199,8 +185,8 @@ export const authService = {
       data: { password: hashed, tokenVersion: { increment: 1 } },
     })
 
-    // Un lien de réinitialisation encore en attente devient caduc : l'utilisateur
-    // vient de prouver qu'il maîtrise son compte.
+    // L'utilisateur vient de prouver qu'il maîtrise son compte : un lien de
+    // réinitialisation encore en attente devient caduc.
     await revokeResetTokens(userId)
     if (currentRefreshToken) await blacklistRefreshToken(currentRefreshToken)
 
@@ -211,13 +197,9 @@ export const authService = {
   },
 
   /**
-   * Demande de réinitialisation (mot de passe oublié).
-   *
-   * Ne renvoie jamais d'information sur l'existence du compte : un e-mail
-   * inconnu ou un compte désactivé sortent silencieusement, et le contrôleur
-   * répond la même chose dans tous les cas (§ anti-énumération de comptes,
-   * OWASP A07). L'envoi SMTP part en tâche de fond pour que la latence du
-   * fournisseur d'e-mail ne devienne pas, elle, le canal qui trahit la réponse.
+   * Anti-énumération de comptes (OWASP A07) : sortie silencieuse si l'e-mail
+   * est inconnu, et envoi SMTP en tâche de fond pour que la latence du
+   * fournisseur ne trahisse pas ce que la réponse tait.
    */
   async requestPasswordReset(email: string) {
     const user = await prisma.user.findUnique({ where: { email } })
@@ -226,8 +208,8 @@ export const authService = {
       return
     }
 
-    // Plafond par compte, en complément du rate limit par IP : empêche de noyer
-    // la boîte mail d'une victime en variant d'adresse IP. 3 envois / heure.
+    // Plafond par compte (3/h) en plus du rate limit par IP : sinon on noie la
+    // boîte mail d'une victime en changeant d'adresse.
     const quotaKey = `rl:pwreset:mail:${user.id}`
     const sent = await redis.incr(quotaKey)
     if (sent === 1) await redis.expire(quotaKey, 60 * 60)
@@ -246,15 +228,9 @@ export const authService = {
   },
 
   /**
-   * Réinitialisation effective à partir du jeton reçu par e-mail.
-   *
-   * Le jeton n'est consommé qu'une fois le nouveau mot de passe validé (un mot
-   * de passe refusé ne doit pas brûler le lien), puis de façon atomique — deux
-   * requêtes concurrentes avec le même jeton ne peuvent pas aboutir toutes deux.
-   *
-   * Toutes les sessions sont invalidées (`tokenVersion`) : si le compte était
-   * compromis, l'attaquant perd son accès. L'utilisateur se reconnecte ensuite
-   * avec son nouveau mot de passe.
+   * Le jeton n'est brûlé qu'une fois le nouveau mot de passe validé — un mot de
+   * passe refusé ne doit pas coûter le lien. `tokenVersion` saute pour couper
+   * l'accès d'un éventuel attaquant.
    */
   async resetPassword(input: ResetPasswordInput) {
     const userId = await peekResetToken(input.token)
@@ -267,7 +243,6 @@ export const authService = {
       throw Object.assign(new Error('Password found in a known data breach'), { code: 'PWNED' })
     }
 
-    // Consommation atomique : si le jeton a été utilisé entre-temps, on refuse.
     const confirmedUserId = await consumeResetToken(input.token)
     if (!confirmedUserId) {
       securityLog('password_reset_invalid_token')

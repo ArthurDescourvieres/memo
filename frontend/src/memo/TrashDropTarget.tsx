@@ -5,13 +5,7 @@ import { useTrashDrop } from '../hooks/useTrash'
 import { getDragItem, hasDragItem } from './sidebar/dragItem'
 import { useDialog } from './dialog/DialogProvider'
 
-/**
- * Bouton corbeille de la sidebar, doublé d'une zone de dépôt : on peut y glisser
- * un dossier ou une note depuis l'arbre. Le clic ouvre toujours la corbeille
- * (onOpen) ; un dépôt met l'élément en corbeille sans confirmation. Tout est
- * restaurable : la note revient seule, le dossier emporte tout son sous-arbre
- * (sous-dossiers + notes) et le ramène à la restauration.
- */
+/** Le bouton corbeille de la sidebar fait aussi zone de dépôt pour l'arbre. */
 export function TrashDropTarget({
   workspaceId,
   onOpen,
@@ -37,8 +31,7 @@ export function TrashDropTarget({
     const item = getDragItem(e)
     if (!item) return
     try {
-      // Note comme dossier partent en corbeille (soft-delete, restaurable) :
-      // pas de confirmation. Le dossier emporte tout son sous-arbre.
+      // Pas de confirmation : le dépôt est restaurable dans les deux cas.
       if (item.kind === 'folder') {
         await deleteFolder.mutateAsync(item.id)
       } else {
@@ -59,8 +52,7 @@ export function TrashDropTarget({
         if (hasDragItem(e)) setOver(true)
       }}
       onDragLeave={(e) => {
-        // Ignore les passages sur les enfants (le SVG) : ne ferme que si le
-        // curseur quitte réellement le bouton.
+        // Le SVG enfant émet aussi l'évènement : ignorer les passages internes.
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false)
       }}
       onDrop={onDrop}

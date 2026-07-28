@@ -18,12 +18,10 @@ export type TreeRowHandlers = {
 }
 
 /**
- * Glisser-déposer d'une ligne vers un dossier. Une ligne de note prend pour
- * cible son dossier conteneur : viser la liste des notes d'un dossier revient
- * ainsi à viser le dossier, ce qui laisse une marge d'erreur au pointeur.
+ * Une ligne de note prend pour cible son dossier conteneur : viser la liste des
+ * notes revient à viser le dossier, ce qui laisse de la marge au pointeur.
  */
 export type TreeRowDnd = {
-  /** Dossier survolé par le glissé en cours (halo), ou null. */
   dropFolderId: string | null
   onDragStart: (item: DragItem) => void
   onDragEnd: () => void
@@ -116,8 +114,6 @@ export function TreeRow({
 
   const isRenaming = edit.renamingId === row.id
   const isFolder = row.kind === 'folder'
-  // Dossier visé par un dépôt sur cette ligne : le dossier lui-même, ou celui
-  // qui contient la note. Une note à la racine n'existe pas (cf. moveTarget).
   const dropFolderId = isFolder ? row.id : row.parentId
   const isDropTarget = dnd.dropFolderId === dropFolderId
 
@@ -132,8 +128,6 @@ export function TreeRow({
       aria-selected={isSelected}
       tabIndex={isActive ? 0 : -1}
       data-row-index={index}
-      // Glisser une ligne (hors renommage) vers un autre dossier, ou vers la
-      // corbeille de la sidebar.
       draggable={canEdit && !isRenaming}
       onDragStart={(e) => {
         e.stopPropagation()

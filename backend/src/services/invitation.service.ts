@@ -11,9 +11,8 @@ function generateToken(): string {
   return randomBytes(32).toString('base64url')
 }
 
-// Resolve an invitee identifier (email or username) to the email the invitation
-// is keyed on. Usernames must match an existing account; acceptance then stays a
-// plain email comparison (see acceptInvitation), so no schema change is needed.
+// L'invitation est toujours indexée par e-mail : un pseudo est résolu ici, ce
+// qui garde l'acceptation sur une simple comparaison d'adresses.
 async function resolveInviteeEmail(identifier: string): Promise<string> {
   if (identifier.includes('@')) return identifier.toLowerCase()
   const user = await prisma.user.findUnique({ where: { name: identifier } })
@@ -23,9 +22,8 @@ async function resolveInviteeEmail(identifier: string): Promise<string> {
   return user.email.toLowerCase()
 }
 
-// Resolve the workspace name + inviter name and send the invite e-mail. Kept
-// separate so createInvitation can fire it without awaiting; swallows its own
-// errors so a mail failure never bubbles up to the request.
+// Détaché pour être lancé sans `await`, et avale ses erreurs : un échec d'envoi
+// ne doit jamais remonter jusqu'à la requête.
 async function dispatchInvitationEmail(invitation: {
   email: string
   token: string
@@ -75,10 +73,7 @@ export const invitationService = {
       },
     })
 
-    // Send the invitation e-mail out of band: fire-and-forget so SMTP latency
-    // never delays the response, and a send failure never fails the invite (the
-    // OWNER can still forward the copied link). Skipped entirely when mail is
-    // disabled, so dev/tests run no extra queries.
+    // Hors de la requête : la latence SMTP ne doit pas retarder la réponse.
     if (MAIL_ENABLED) void dispatchInvitationEmail(invitation)
 
     return invitation
@@ -91,11 +86,10 @@ export const invitationService = {
     })
   },
 
-  // Public invitation metadata for the invite landing page (no auth). Exposed
-  // only for a still-pending, non-expired invitation; anything else throws
-  // NOT_FOUND so we never leak whether a consumed/revoked token existed. The
-  // 32-byte token is the credential, so returning the bound email here (to
-  // prefill signup) is safe — only someone holding the link can read it.
+  // Lu sans authentification par la page d'atterrissage. Tout ce qui n'est pas
+  // une invitation vivante renvoie NOT_FOUND, pour ne pas révéler qu'un jeton
+  // consommé ou révoqué a existé. Rendre l'e-mail lié est sans risque : le
+  // jeton de 32 octets est lui-même le secret.
   async getInvitationByToken(token: string) {
     const invitation = await prisma.invitation.findUnique({
       where: { token },
@@ -153,8 +147,6 @@ export const invitationService = {
       throw Object.assign(new Error('Invitation is for a different email'), { code: 'FORBIDDEN' })
     }
 
-    // Create the membership (if not already present) and mark the invitation
-    // accepted, atomically.
     return prisma.$transaction(async (tx) => {
       const existing = await tx.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId, workspaceId: invitation.workspaceId } },

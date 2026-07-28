@@ -6,15 +6,13 @@ import { router } from './routes/index.js'
 
 export const app = new Hono()
 
-// Middleware order (§7.1): structured logging -> CORS allow-list -> security
-// headers -> routes. requestLogger replaces hono/logger (Pino, OWASP A09).
+// Ordre imposé (§7.1) : journalisation → CORS → en-têtes de sécurité → routes.
 app.use('*', requestLogger)
 app.use('*', corsMiddleware)
 app.use('*', securityHeaders)
 
-// Central error boundary: preserve framework HTTPExceptions (e.g. the JWT
-// middleware's 401) but never leak an unhandled error's stack to the client —
-// log it server-side and return a generic 500.
+// Les HTTPException du framework (401 du middleware JWT…) passent telles
+// quelles ; le reste est journalisé côté serveur et masqué derrière un 500.
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
     return err.getResponse()

@@ -1,7 +1,5 @@
 name: CI
 
-# Quality gate for every pull request, and image publication on main.
-# Steps run cheapest-first so the pipeline fails as early as possible.
 on:
   push:
     branches: [main]
@@ -83,12 +81,6 @@ jobs:
       - name: ESLint
         run: npm run lint
 
-      # `npm audit` cannot exempt a single advisory: it is all-or-nothing on a
-      # severity level. audit-ci keeps the same high/critical gate but allows a
-      # documented, per-advisory allowlist — see the rationale written next to
-      # each entry in the config files. Scope is unchanged: full tree for the
-      # backend, production dependencies only for the frontend (build tooling is
-      # dev-only and never shipped; the image itself is scanned by Trivy).
       - name: Audit backend dependencies (high/critical)
         run: npx audit-ci --config audit-ci.backend.jsonc
 
@@ -120,9 +112,6 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      # Spins up ephemeral PostgreSQL + Redis (docker-compose.test.yml, tmpfs)
-      # and waits for their healthchecks (`up -d --wait`) — the readiness probe
-      # that removed the flaky "DB not ready yet" failures.
       - name: Integration tests (ephemeral PG/Redis)
         working-directory: backend
         run: npm run test:integration
@@ -181,9 +170,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Scan the published images (OWASP A06). A fixable HIGH/CRITICAL fails the
-      # run, so the Deploy workflow (which only fires on a green CI) never starts.
-      # ignore-unfixed avoids failing on vulnerabilities that have no patch yet.
       - name: Scan backend image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -1,21 +1,13 @@
 interface MemoLogoProps {
-  /** Côté du carré en pixels (largeur = hauteur). */
   size?: number
-  /**
-   * `tile` = pastille sauge + M blanc (logo applicatif, déclencheurs/avatars).
-   * `mono` = M seul en `currentColor`, sans fond (favicon, contextes neutres).
-   */
+  /** `tile` = pastille pleine ; `mono` = M seul en `currentColor`, sans fond. */
   variant?: 'tile' | 'mono'
-  /** Libellé accessible. Sans titre, le logo est décoratif (`aria-hidden`). */
+  /** Sans titre, le logo est décoratif (`aria-hidden`). */
   title?: string
   className?: string
 }
 
-/**
- * Monogramme « M » de Memo, rendu en SVG vectoriel (net à toute taille).
- * Les couleurs proviennent des tokens (`--color-accent`, `--color-on-accent`,
- * `--color-gold`) : le logo suit donc automatiquement le thème clair/sombre.
- */
+/** Couleurs prises dans les tokens : le logo suit le thème clair/sombre. */
 export function MemoLogo({ size = 28, variant = 'tile', title, className }: MemoLogoProps) {
   const tile = variant === 'tile'
   return (

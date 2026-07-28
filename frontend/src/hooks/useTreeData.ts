@@ -5,11 +5,9 @@ import { useCreateFolder, useDeleteFolder, useUpdateFolder } from './useWorkspac
 import type { FlatNote } from '../memo/sidebar/flattenTree'
 
 /**
- * Charge les notes des dossiers actuellement dépliés (lazy : un seul fetch par
- * dossier ouvert, via `useQueries`) et expose les mutations dont l'arbre a
- * besoin. Centralisé ici pour que `FolderTree` reste un composant de rendu :
- * la virtualisation impose de connaître toutes les notes visibles d'un coup,
- * donc on ne peut plus charger note par note dans des composants enfants.
+ * Un fetch par dossier déplié, plus les mutations de l'arbre. Centralisé ici
+ * parce que la virtualisation impose de connaître toutes les notes visibles
+ * d'un coup : impossible de charger note par note dans des composants enfants.
  */
 export function useTreeData(workspaceId: string, openIds: string[]) {
   const qc = useQueryClient()
@@ -52,8 +50,6 @@ export function useTreeData(workspaceId: string, openIds: string[]) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 
-  // Déplacements (glisser-déposer dans l'arbre). Le serveur valide la cible :
-  // même workspace, et pas de cycle pour un dossier.
   const moveFolder = useMutation({
     mutationFn: ({ id, targetParentId }: { id: string; targetParentId: string | null }) =>
       api<Folder>(`/api/workspaces/${workspaceId}/folders/${id}/move`, {
@@ -67,9 +63,8 @@ export function useTreeData(workspaceId: string, openIds: string[]) {
     mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string }) =>
       api<Note>(`/api/notes/${id}/move`, { method: 'PATCH', json: { targetFolderId } }),
     onSuccess: (_note, { id }) => {
-      // Les deux dossiers concernés changent de contenu : on invalide toutes les
-      // listes de notes. La note elle-même porte son `folderId` (la coquille s'en
-      // sert pour rouvrir l'arbre au bon endroit) : à rafraîchir aussi.
+      // Deux dossiers changent de contenu, et la note porte son `folderId` dont
+      // la coquille se sert pour rouvrir l'arbre au bon endroit.
       qc.invalidateQueries({ queryKey: ['notes'] })
       qc.invalidateQueries({ queryKey: ['note', id] })
     },

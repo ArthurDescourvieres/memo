@@ -1,11 +1,9 @@
 /**
- * Script de purge RGPD à exécuter à la demande ou via cron.
+ * Purge RGPD des comptes désactivés depuis plus de 30 jours, à brancher sur un
+ * cron système :
  *
- *   npm run purge                       (en local)
- *   docker compose exec api npm run purge   (en conteneur)
- *
- * Supprime définitivement les comptes désactivés depuis plus de 30 jours
- * (cf. purgeService). Conçu pour être branché sur un cron système / planificateur.
+ *   npm run purge
+ *   docker compose exec api npm run purge
  */
 import { purgeService } from '../services/purge.service.js'
 import { prisma } from '../lib/prisma.js'

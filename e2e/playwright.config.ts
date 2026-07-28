@@ -1,25 +1,19 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Suite E2E locale (hors CI) — Chromium uniquement.
- *
- * Prérequis : la stack Docker doit déjà tourner (`docker compose up -d` à la
- * racine). Le front est piloté sur http://localhost:5173 et appelle l'API en
- * chemins relatifs (/api, /socket.io) proxifiés par Vite : aucune config d'URL
- * d'API ni de CORS n'est nécessaire côté tests.
- *
- * `globalSetup` sonde /api/health avant de lancer la suite et échoue vite, avec
- * un message clair, si la stack n'est pas joignable.
+ * Suite E2E locale (hors CI). La stack Docker doit déjà tourner : `globalSetup`
+ * sonde /api/health et échoue vite si elle n'est pas joignable. L'API est
+ * appelée en chemins relatifs, proxifiés par Vite — donc rien à configurer.
  */
 export default defineConfig({
   testDir: './tests',
   globalSetup: './global-setup.ts',
 
-  // Les 4 specs sont indépendants (utilisateurs uniques par run) → parallélisme sûr.
+  // Chaque spec crée ses propres utilisateurs : aucun état partagé.
   fullyParallel: true,
   forbidOnly: false,
-  // 1 retry comme filet : absorbe une lenteur ponctuelle de la machine (la stack
-  // Docker partage le CPU). Une vraie régression échoue les deux tentatives.
+  // Filet contre une lenteur ponctuelle de la machine. Une vraie régression
+  // échoue les deux tentatives.
   retries: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
 

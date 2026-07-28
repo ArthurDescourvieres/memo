@@ -22,11 +22,7 @@ type JoinAck = { ok: boolean; presence?: Presence[]; error?: string }
 type Options = {
   onRemoteUpdate?: (u: RemoteUpdate) => void
   onRemoteLive?: (u: RemoteUpdate) => void
-  /**
-   * Called after the socket drops and reconnects, once the note room has been
-   * re-joined. While offline the client misses `note:update` broadcasts, so the
-   * consumer uses this to refetch the note and resync its content.
-   */
+  /** Appelé après une reconnexion : des `note:update` ont pu passer hors ligne. */
   onResync?: () => void
 }
 
@@ -48,8 +44,8 @@ export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
     }
     const socket = getSocket()
     let cancelled = false
-    // Flipped to true on every disconnect, so the *next* `connect` is treated
-    // as a reconnection (re-join + resync) rather than the initial join.
+    // Passé à true à chaque coupure, pour distinguer le `connect` suivant de la
+    // toute première connexion.
     let reconnecting = false
 
     setError(null)
@@ -70,9 +66,8 @@ export function useNoteRealtime(noteId: string | null, opts: Options = {}) {
     const onConnect = () => {
       setConnected(true)
       if (reconnecting) {
-        // The transport dropped and came back: the server removed this socket
-        // from the room on `disconnecting`, and we missed any note:update sent
-        // meanwhile. Re-join the room and let the consumer resync the content.
+        // Le serveur nous a sortis de la room au `disconnecting` : il faut la
+        // rejoindre et laisser le consommateur resynchroniser.
         reconnecting = false
         join()
         resyncRef.current?.()

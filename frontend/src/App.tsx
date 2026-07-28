@@ -4,9 +4,8 @@ import { Spinner } from './memo/Spinner'
 import { useAuth } from './lib/auth/AuthContext'
 import { readPendingInvite } from './lib/pendingInvite'
 
-// Code splitting (éco-conception) : les écrans lourds sont chargés à la demande.
-// WorkspaceShell embarque l'éditeur Tiptap + lowlight + socket.io (gros chunk) et
-// n'est utile qu'une fois connecté ; Landing/Login ne servent qu'aux visiteurs.
+// Chargement à la demande : WorkspaceShell embarque Tiptap, lowlight et
+// socket.io, inutiles tant qu'on n'est pas connecté.
 const WorkspaceShell = lazy(() =>
   import('./memo/WorkspaceShell').then((m) => ({ default: m.WorkspaceShell })),
 )
@@ -43,12 +42,10 @@ export function App() {
     return <CenteredSpinner />
   }
 
-  // A signed-out visitor who followed an invite link gets the invite-aware auth
-  // screen (workspace shown, email prefilled) instead of the marketing landing.
+  // Un visiteur arrivé par un lien d'invitation voit l'écran d'authentification
+  // dédié (espace affiché, e-mail prérempli) plutôt que la landing.
   const pendingInvite = readPendingInvite()
 
-  // Public routes are only mounted for unauthenticated visitors, so the landing
-  // page is unreachable once signed in. Suspense covers the lazy-loaded chunks.
   return (
     <Suspense fallback={<CenteredSpinner />}>
       {auth.status === 'guest' ? (
@@ -62,9 +59,8 @@ export function App() {
           <Route path="/" element={<WorkspaceShell />} />
           <Route path="/mentions-legales" element={<MentionsLegales />} />
           <Route path="/confidentialite" element={<Confidentialite />} />
-          {/* Un lien de réinitialisation ouvert depuis une session déjà connectée
-              doit rester fonctionnel, sinon la redirection vers `/` donne
-              l'impression d'un lien cassé. */}
+          {/* Sans cette route, un lien de réinitialisation ouvert depuis une
+              session active redirigerait vers `/` et paraîtrait cassé. */}
           <Route path="/reinitialiser-mot-de-passe" element={<AuthedResetPassword />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -74,9 +70,8 @@ export function App() {
 }
 
 /**
- * Réinitialisation ouverte alors qu'une session est active. La réinitialisation
- * invalide toutes les sessions du compte : celle-ci ne survit pas non plus, on
- * déconnecte donc explicitement avant de renvoyer vers l'écran de connexion.
+ * La réinitialisation invalide toutes les sessions du compte, celle-ci
+ * comprise : on déconnecte explicitement avant de renvoyer vers la connexion.
  */
 function AuthedResetPassword() {
   const auth = useAuth()
@@ -84,15 +79,15 @@ function AuthedResetPassword() {
     <ResetPassword
       onLogin={async () => {
         await auth.logout()
-        // Rechargement plutôt que `navigate` : l'URL porte encore le jeton
-        // consommé, et repasser en visiteur re-monterait cet écran-ci.
+        // Rechargement et pas `navigate` : l'URL porte encore le jeton consommé,
+        // repasser en visiteur re-monterait cet écran-ci.
         window.location.href = '/login'
       }}
     />
   )
 }
 
-/** Routes available to visitors who are not signed in. */
+/** Montées pour les seuls visiteurs : la landing est inatteignable une fois connecté. */
 function PublicRoutes() {
   const navigate = useNavigate()
 

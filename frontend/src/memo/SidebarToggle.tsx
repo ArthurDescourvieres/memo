@@ -1,10 +1,8 @@
 import { MemoIcon } from './MemoIcon'
 
 /**
- * Bouton de repli, posé dans l'en-tête de la sidebar (sidebar ouverte).
- * En mobile le panneau occupe tout l'écran : le replier revient à retourner sur
- * la note ouverte, d'où le libellé paramétrable — l'icône, elle, reste la même
- * partout pour que le geste « ouvrir/fermer le panneau » soit reconnaissable.
+ * Le libellé est paramétrable — en mobile, replier le panneau revient à revenir
+ * sur la note. L'icône ne change jamais : c'est le même geste.
  */
 export function SidebarToggleButton({
   onClick,
@@ -26,11 +24,7 @@ export function SidebarToggleButton({
   )
 }
 
-/**
- * Bouton flottant de réouverture, visible quand le panneau n'est pas affiché :
- * sidebar repliée en desktop, éditeur plein écran en mobile. Même icône que le
- * bouton de repli — c'est le même panneau qu'on montre ou qu'on cache.
- */
+/** Pendant flottant du précédent : sidebar repliée en desktop, éditeur plein écran en mobile. */
 export function SidebarOpenButton({
   visible,
   onClick,

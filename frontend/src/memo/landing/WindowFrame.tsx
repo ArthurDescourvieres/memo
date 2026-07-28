@@ -3,9 +3,8 @@ import { MemoIcon } from '../MemoIcon'
 
 type WindowFrameProps = {
   children: ReactNode
-  /** Classes supplémentaires (ex. survol zoom des démos). */
   className?: string
-  /** Libellé centré optionnel dans la barre de titre. */
+  /** Libellé centré dans la barre de titre. */
   title?: string
 }
 
@@ -13,10 +12,6 @@ const FRAME =
   'overflow-hidden rounded-[14px] border border-line-strong bg-surface-1 ' +
   'shadow-[0_40px_90px_-50px_var(--color-ink-shadow),0_0_0_1px_var(--color-overlay-weak)_inset]'
 
-/**
- * Cadre « fenêtre macOS » réutilisable : barre à trois pastilles + contenu.
- * Sert aussi bien au mock d'interface du hero qu'aux vidéos de démo au survol.
- */
 export function WindowFrame({ children, className, title }: WindowFrameProps) {
   return (
     <div className={className ? `${FRAME} ${className}` : FRAME}>
@@ -36,10 +31,7 @@ export function WindowFrame({ children, className, title }: WindowFrameProps) {
   )
 }
 
-/**
- * Emplacement vidéo de démo : placeholder affiché tant que l'enregistrement
- * n'est pas prêt. On y branchera une <video> jouée au survol.
- */
+/** Réservation d'espace en attendant l'enregistrement de la démo. */
 export function VideoSlot({ label }: { label: string }) {
   return (
     <div className="flex min-h-[300px] flex-col items-center justify-center gap-2.5 text-faint">

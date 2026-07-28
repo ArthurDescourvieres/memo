@@ -8,9 +8,8 @@ import { workspaceService } from './workspace.service.js'
 // Période de grâce avant purge définitive d'un compte désactivé (§ RGPD).
 const GRACE_DAYS = 30
 
-// Compte « pierre tombale » : auteur de remplacement pour le contenu qui survit
-// à la suppression d'un utilisateur (notes partagées, pièces jointes…). Son hash
-// est aléatoire et il n'est membre d'aucun workspace : aucun login possible.
+// Auteur de remplacement pour le contenu qui survit à la suppression. Hash
+// aléatoire et aucune adhésion : personne ne peut s'y connecter.
 const TOMBSTONE_EMAIL = 'compte-supprime@memo.invalid'
 
 async function getOrCreateTombstone() {
@@ -26,19 +25,9 @@ async function getOrCreateTombstone() {
 }
 
 /**
- * Purge définitive d'un compte désactivé (effacement / anonymisation en cascade,
- * §7 RGPD du MEMO). Idempotent : relançable sans dommage.
- *
- *  1. Workspaces possédés :
- *     - seul membre → suppression complète (BDD + fichiers disque) ;
- *     - partagés → propriété transférée au membre le plus ancien (devient OWNER).
- *  2. Le contenu qui survit (notes, pièces jointes, permissions, invitations) est
- *     réattribué au compte « Utilisateur supprimé » (anonymisation).
- *  3. Le compte est supprimé ; ses adhésions partent en cascade.
- *
- * L'ordre garantit qu'aucune contrainte `ON DELETE RESTRICT` (ownerId, createdById,
- * uploadedById, grantedById, invitedById) ne pointe encore vers l'utilisateur au
- * moment du `delete`.
+ * Purge définitive d'un compte désactivé (§7 RGPD), idempotente. L'ordre compte :
+ * céder les workspaces puis réattribuer le contenu, sinon un `ON DELETE RESTRICT`
+ * (ownerId, createdById, uploadedById, grantedById, invitedById) bloque le `delete`.
  */
 async function purgeUser(userId: string): Promise<void> {
   const tombstone = await getOrCreateTombstone()
@@ -58,7 +47,7 @@ async function purgeUser(userId: string): Promise<void> {
           })
 
     if (!heir) {
-      // Seul propriétaire non partagé → suppression complète (disque inclus).
+      // Workspace non partagé : rien à léguer, on supprime (fichiers disque inclus).
       await workspaceService.deleteWorkspace(ws.id)
     } else {
       await prisma.$transaction([
@@ -90,10 +79,7 @@ async function purgeUser(userId: string): Promise<void> {
 }
 
 export const purgeService = {
-  /**
-   * Purge tous les comptes désactivés depuis plus de 30 jours. `now` est injectable
-   * pour les tests (passer une date dans le futur pour forcer l'éligibilité).
-   */
+  /** `now` est injectable : les tests passent une date future pour forcer l'éligibilité. */
   async purgeDeactivatedAccounts(now: Date = new Date()) {
     const cutoff = new Date(now.getTime() - GRACE_DAYS * 24 * 60 * 60 * 1000)
     const expired = await prisma.user.findMany({

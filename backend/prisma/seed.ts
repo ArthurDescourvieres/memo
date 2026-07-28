@@ -1,11 +1,3 @@
-/**
- * Seed de démonstration : recrée une base complète et réaliste (espaces,
- * dossiers, notes riches, membres, invitations, corbeille, pièces jointes)
- * rattachée à un compte de connexion, pour les captures d'écran / maquettes.
- *
- * Lancement (depuis la racine) :
- *   docker compose exec api npx tsx prisma/seed.ts
- */
 import { randomBytes } from 'node:crypto'
 import { readdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'

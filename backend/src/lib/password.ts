@@ -2,16 +2,13 @@ import argon2 from 'argon2'
 import bcrypt from 'bcryptjs'
 
 /**
- * Password hashing — argon2id with the OWASP-recommended parameters (§5.2):
- * 19 MiB of memory, 3 iterations, parallelism 1.
- *
- * Accounts created before the migration are stored as bcrypt hashes. They
- * remain verifiable here, and `needsRehash` flags them so the caller can
- * transparently upgrade them to argon2id on the next successful login.
+ * Paramètres argon2id recommandés par l'OWASP (§5.2). Les comptes antérieurs à
+ * la migration restent vérifiables en bcrypt, `needsRehash` les signale pour
+ * conversion au prochain login réussi.
  */
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
-  memoryCost: 19456, // 19 MiB (19456 KiB)
+  memoryCost: 19456, // 19 Mio
   timeCost: 3,
   parallelism: 1,
 } as const
@@ -31,8 +28,8 @@ export async function verifyPassword(hash: string, plain: string): Promise<boole
   try {
     return await argon2.verify(hash, plain)
   } catch {
-    // Malformed or unknown hash format — treat as a failed verification
-    // rather than leaking the error to the caller.
+    // Hash malformé ou format inconnu : échec de vérification, pas une erreur
+    // remontée à l'appelant.
     return false
   }
 }

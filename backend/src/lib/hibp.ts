@@ -3,15 +3,12 @@ import { createHash } from 'node:crypto'
 const HIBP_RANGE_URL = 'https://api.pwnedpasswords.com/range/'
 
 /**
- * Have I Been Pwned k-anonymity check (§5.3).
+ * Vérification k-anonyme chez Have I Been Pwned (§5.3) : seuls les 5 premiers
+ * caractères du SHA-1 partent, le suffixe est comparé localement. `Add-Padding`
+ * brouille la taille du lot renvoyé, d'où les entrées à compte 0 à ignorer.
  *
- * Only the first 5 characters of the password's SHA-1 are sent to the API;
- * the 35-character suffix is compared locally, so neither the password nor
- * its full hash ever leaves the server. `Add-Padding` obscures the real
- * result set, so padding entries (count 0) must be ignored.
- *
- * Fails open (returns false) on any network/HTTP error: a third-party outage
- * must not block all sign-ups. The minimum-length policy still applies.
+ * Échoue en mode permissif : une panne du service ne doit pas bloquer toutes
+ * les inscriptions.
  */
 export async function isPasswordPwned(password: string): Promise<boolean> {
   const sha1 = createHash('sha1').update(password, 'utf8').digest('hex').toUpperCase()

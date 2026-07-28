@@ -1,14 +1,9 @@
 /**
- * Mémorise la dernière position de l'utilisateur dans l'application (workspace,
- * dossier, note ouverte) pour la restaurer après un rechargement de page.
+ * Dernière position dans l'app, restaurée au rechargement — les notes n'étant
+ * pas routées dans l'URL, un F5 ramènerait sinon à l'accueil avec l'arbre replié.
  *
- * L'app ne route pas les notes dans l'URL : sans cette persistance, un F5
- * ramenait sur l'écran d'accueil, avec l'arbre replié — il fallait redérouler
- * dossiers et sous-dossiers pour retrouver sa note.
- *
- * Le stockage est cloisonné par utilisateur (deux comptes sur le même
- * navigateur ne se marchent pas dessus) et toute donnée illisible est ignorée :
- * une position invalide ne doit jamais empêcher l'app de démarrer.
+ * Cloisonné par utilisateur, et tolérant à la donnée illisible : une position
+ * invalide ne doit jamais empêcher l'app de démarrer.
  */
 export type LastLocation = {
   workspaceId: string | null
@@ -26,8 +21,7 @@ function safeStorage(): Storage | null {
   try {
     return typeof window !== 'undefined' ? window.localStorage : null
   } catch {
-    // Cookies/stockage bloqués (mode strict, iframe tierce) : on s'en passe.
-    return null
+    return null // stockage bloqué (mode strict, iframe tierce)
   }
 }
 
@@ -63,7 +57,7 @@ export function writeLastLocation(userId: string | null, loc: LastLocation): voi
   try {
     store.setItem(keyFor(userId), JSON.stringify(loc))
   } catch {
-    /* quota plein ou stockage indisponible : la restauration est un confort */
+    /* quota plein : la restauration n'est qu'un confort */
   }
 }
 

@@ -4,10 +4,8 @@ import type { FolderTreeNode } from './buildFolderTree'
 export type FlatNote = { id: string; title: string }
 
 /**
- * Une ligne « à plat » de l'arbre visible. La virtualisation a besoin d'une
- * liste linéaire : on transforme l'arbre (dossiers dépliés + leurs notes) en
- * une suite de lignes, chacune portant sa profondeur (`depth`) pour
- * l'indentation et `aria-level`.
+ * La virtualisation exige une liste linéaire : chaque ligne porte donc sa
+ * profondeur, pour l'indentation et `aria-level`.
  */
 export type FlatRow =
   | {
@@ -31,11 +29,7 @@ type FlattenInput = {
   creating: { parentId: string; kind: 'note' | 'folder' } | null
 }
 
-/**
- * Aplatit l'arbre en respectant l'ordre d'affichage (DFS) : dossier, puis — s'il
- * est déplié — sa ligne de création éventuelle, ses sous-dossiers, ses notes, et
- * enfin un repère « Vide » / « … » selon l'état du chargement.
- */
+/** Parcours en profondeur, dans l'ordre d'affichage. */
 export function flattenTree({
   roots,
   expanded,

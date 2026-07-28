@@ -6,11 +6,9 @@ type ChangePasswordInput = { currentPassword: string; newPassword: string }
 type ChangePasswordResponse = { accessToken: string; user: AuthUser }
 
 /**
- * Changement du mot de passe depuis le compte connecté.
- *
- * Le serveur invalide toutes les sessions (bump de `tokenVersion`) et renvoie un
- * couple de jetons neuf pour celle-ci : on adopte le nouveau jeton d'accès sans
- * attendre, sinon la requête suivante partirait avec un jeton devenu caduc.
+ * Le serveur invalide toutes les sessions et en réémet une pour celle-ci :
+ * il faut adopter le nouveau jeton tout de suite, sinon la requête suivante
+ * part avec un jeton caduc.
  */
 export function useChangePassword() {
   return useMutation({
@@ -25,11 +23,7 @@ export function useChangePassword() {
   })
 }
 
-/**
- * Demande d'un lien de réinitialisation. La réponse est volontairement identique
- * que l'adresse corresponde ou non à un compte : l'UI ne peut donc pas servir à
- * savoir qui est inscrit.
- */
+/** La réponse est la même que l'adresse existe ou non : l'UI ne dit pas qui est inscrit. */
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (email: string) =>
@@ -40,7 +34,6 @@ export function useForgotPassword() {
   })
 }
 
-/** Application du nouveau mot de passe à partir du jeton reçu par e-mail. */
 export function useResetPassword() {
   return useMutation({
     mutationFn: (input: { token: string; password: string }) =>

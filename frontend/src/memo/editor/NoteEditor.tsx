@@ -19,9 +19,8 @@ export function NoteEditor({
   const note = useNote(noteId)
   const autosave = useNoteAutosave(noteId)
   const readOnly = !canEdit
-  // Info-bulle « pas les droits », affichée quand on tente d'écrire en lecture
-  // seule. Un compteur (et non un booléen) pour que chaque tentative relance
-  // l'apparition même si l'info-bulle est déjà visible.
+  // Un compteur et non un booléen : chaque tentative doit relancer l'info-bulle,
+  // même si elle est déjà visible.
   const [denied, setDenied] = useState(0)
 
   const initialContent = useMemo(() => note.data?.content ?? null, [note.data?.id])
@@ -41,8 +40,7 @@ export function NoteEditor({
 
   const realtime = useNoteRealtime(noteId, {
     onRemoteLive: (u) => {
-      // Skip if I'm currently typing — local edits take priority.
-      if (isTypingRef.current) return
+      if (isTypingRef.current) return // la frappe locale prime
       if (u.title !== undefined) setTitle(u.title)
       if (u.content !== undefined) setRemoteContent(u.content)
     },
@@ -52,9 +50,7 @@ export function NoteEditor({
       if (u.content !== undefined) setRemoteContent(u.content)
     },
     onResync: async () => {
-      // Après une reconnexion, on a pu manquer des note:update hors-ligne :
-      // on récupère la note à jour et on l'applique, sauf si l'utilisateur
-      // est en train de taper (ses modifications locales priment).
+      // Des `note:update` ont pu passer pendant la coupure.
       const { data } = await note.refetch()
       if (!data || isTypingRef.current) return
       setTitle(data.title)
@@ -76,20 +72,16 @@ export function NoteEditor({
     }
   }, [])
 
-  // Rétrogradation en cours d'édition : la frappe déjà mise en file (débounce
-  // 2 s) serait refusée par le serveur et afficherait « Erreur ». On l'annule,
-  // le verrouillage de l'éditeur prend le relais.
+  // Rétrogradation en cours d'édition : la frappe déjà mise en file serait
+  // refusée par le serveur et afficherait « Erreur ».
   useEffect(() => {
     if (readOnly) autosave.cancel()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOnly])
 
-  // La note ouverte peut disparaître sous nos pieds : mise à la corbeille (par
-  // glisser-déposer ou par un collaborateur) ou supprimée avec son dossier
-  // parent. Dans tous ces cas on referme l'éditeur, sinon on continuerait
-  // d'afficher une note « fantôme » qui n'est plus consultable. Le backend ne
-  // filtrant pas deletedAt sur GET, une note en corbeille revient avec ce champ
-  // renseigné ; une note réellement supprimée (cascade dossier) renvoie une erreur.
+  // La note peut disparaître sous nos pieds (corbeille, dossier supprimé par un
+  // collaborateur). Le GET ne filtre pas `deletedAt` : une note en corbeille
+  // revient avec le champ renseigné, une note vraiment supprimée lève.
   const unavailable = note.isError || note.data?.deletedAt != null
   useEffect(() => {
     if (unavailable) onUnavailable()
@@ -107,8 +99,6 @@ export function NoteEditor({
           readOnly={readOnly}
           aria-readonly={readOnly || undefined}
           onKeyDown={(e) => {
-            // En lecture seule le champ n'accepte rien : on explique pourquoi
-            // dès la première touche « utile » (les flèches/copie restent muettes).
             if (readOnly && !NAVIGATION_KEYS.has(e.key) && !e.ctrlKey && !e.metaKey) {
               setDenied((n) => n + 1)
             }
@@ -132,9 +122,7 @@ export function NoteEditor({
 
       <div
         className="relative"
-        // En lecture seule, toute tentative d'interaction avec la zone de texte
-        // — clic pour poser le curseur, puis frappe — est expliquée plutôt que
-        // silencieusement ignorée.
+        // Un refus expliqué plutôt qu'une frappe silencieusement ignorée.
         onPointerDown={readOnly ? () => setDenied((n) => n + 1) : undefined}
         onKeyDown={
           readOnly
@@ -167,7 +155,7 @@ export function NoteEditor({
   )
 }
 
-/** Touches qui ne cherchent pas à modifier le texte (pas de refus à signaler). */
+/** Touches qui ne cherchent pas à modifier le texte : rien à refuser. */
 const NAVIGATION_KEYS = new Set([
   'ArrowLeft',
   'ArrowRight',
@@ -198,10 +186,6 @@ function ReadOnlyBadge() {
   )
 }
 
-/**
- * Info-bulle éphémère affichée sur une tentative d'écriture interdite.
- * Réapparaît à chaque tentative : `trigger` est un compteur, pas un booléen.
- */
 function DeniedTooltip({ trigger }: { trigger: number }) {
   const [visible, setVisible] = useState(false)
 

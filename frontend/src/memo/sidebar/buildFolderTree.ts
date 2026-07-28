@@ -6,11 +6,8 @@ export type FolderTreeNode = {
 }
 
 /**
- * Construit l'arbre des dossiers à partir de la liste plate renvoyée par l'API
- * (chaque dossier porte son `parentId`). Les racines sont les dossiers sans
- * parent — ou dont le parent n'appartient pas au lot, traités comme racines par
- * sécurité. L'ordre d'origine (createdAt asc côté API) est préservé à chaque
- * niveau puisqu'on parcourt la liste dans l'ordre.
+ * Un dossier dont le parent n'est pas dans le lot est traité comme racine.
+ * L'ordre de l'API est préservé à chaque niveau, la liste étant parcourue telle quelle.
  */
 export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
   const byId = new Map<string, FolderTreeNode>()
@@ -26,11 +23,7 @@ export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
   return roots
 }
 
-/**
- * Renvoie les ids des dossiers ancêtres d'un dossier cible, du plus proche à la
- * racine. Sert à déplier le chemin menant à une note trouvée par la recherche.
- * Protégé contre les cycles éventuels par un ensemble de visités.
- */
+/** Ancêtres d'un dossier, du plus proche à la racine. `visited` garde des cycles. */
 export function ancestorFolderIds(folders: Folder[], folderId: string | null): string[] {
   if (!folderId) return []
   const byId = new Map(folders.map((f) => [f.id, f]))

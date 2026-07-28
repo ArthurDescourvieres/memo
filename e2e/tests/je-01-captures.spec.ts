@@ -9,13 +9,11 @@ import {
 } from '../helpers/app'
 
 /**
- * JE-01 (bonus captures) — reprend le Parcours 3 (collaboration temps réel entre
- * deux contextes de navigateur) et capture les DEUX fenêtres montrant le même
- * texte propagé via note:live. Les PNG atterrissent dans jeu-essai/captures/.
+ * Rejoue le Parcours 3 et capture les deux fenêtres montrant le même texte
+ * propagé. Les PNG atterrissent dans jeu-essai/captures/.
  *
- * NB périmètre : la suite Playwright est câblée sur la stack DEV (front 5173 →
- * proxy Vite → API :3000), pas sur le serveur de test :3100 des harnais socket.io.
- * C'est le même code temps réel ; seule la source de données diffère.
+ * La suite tourne sur la stack de dev, pas sur le serveur de test :3100 des
+ * harnais socket.io : même code temps réel, seule la source de données diffère.
  */
 const cap = (name: string) =>
   fileURLToPath(new URL(`../../jeu-essai/captures/${name}`, import.meta.url))

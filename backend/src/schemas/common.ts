@@ -1,17 +1,12 @@
 import { z } from 'zod'
 
 /**
- * Champ texte « métier » (titre de note, nom de workspace…).
+ * Champ texte « métier » (titre de note, nom de workspace…). Le `normalize`
+ * fusionne les variantes Unicode — « é » composé et « e » + accent combinant se
+ * stockent pareil (§7.3).
  *
- * Étapes appliquées dans l'ordre (§7.3 — validation & assainissement) :
- *  1. trim()           → retire les espaces de début/fin ;
- *  2. min() / max()    → borne la longueur sur la valeur déjà trimmée ;
- *  3. normalize('NFC') → fusionne les variantes Unicode (« é » composé vs
- *     « e » + accent combinant) pour qu'un même texte visuel soit toujours
- *     stocké de façon identique.
- *
- * À NE PAS utiliser pour un secret (mot de passe) : on ne doit jamais trim ni
- * normaliser un mot de passe, sa valeur exacte saisie fait foi.
+ * Jamais pour un secret : un mot de passe ne se trim ni ne se normalise, sa
+ * valeur exacte fait foi.
  */
 export function normalizedText(min: number, max: number) {
   return z

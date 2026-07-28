@@ -6,9 +6,8 @@ const prefersReducedMotion = (): boolean =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
- * Pointer parallax. Writes `--px` / `--py` (range ~ -0.5..0.5) onto the
- * returned element so child layers can offset themselves with calc().
- * DOM is mutated directly (no re-render) and throttled with rAF.
+ * Écrit `--px` / `--py` (≈ -0.5..0.5) sur l'élément retourné, pour que les
+ * couches enfants se décalent en calc(). Mutation directe du DOM, sans rendu.
  */
 export function usePointerParallax<T extends HTMLElement>(): RefObject<T> {
   const ref = useRef<T>(null)
@@ -41,10 +40,7 @@ export function usePointerParallax<T extends HTMLElement>(): RefObject<T> {
   return ref
 }
 
-/**
- * Scroll parallax. Writes the scroll offset of the container into `--sy`
- * (unitless px) so descendants can drift at different speeds via calc().
- */
+/** Écrit le défilement du conteneur dans `--sy` (px sans unité). */
 export function useScrollParallax<T extends HTMLElement>(): RefObject<T> {
   const ref = useRef<T>(null)
 
@@ -73,9 +69,8 @@ export function useScrollParallax<T extends HTMLElement>(): RefObject<T> {
 }
 
 /**
- * Reveal-on-scroll. Adds `.is-visible` to every `[data-reveal]` descendant of
- * `rootRef` as it enters the viewport. Honours reduced-motion by revealing all
- * elements immediately.
+ * Ajoute `.is-visible` à chaque `[data-reveal]` entrant dans le viewport.
+ * En mouvement réduit, tout est révélé d'emblée.
  */
 export function useRevealOnScroll(rootRef: RefObject<HTMLElement | null>): void {
   useEffect(() => {

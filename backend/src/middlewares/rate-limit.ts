@@ -14,11 +14,8 @@ function clientIp(c: Context): string {
 }
 
 /**
- * Fixed-window rate limiter backed by Redis (§5.6 / §7.1). Counts requests per
- * client IP under `rl:<prefix>:<ip>`; once the limit is exceeded within the
- * window it responds 429 with a Retry-After header until the window expires.
- *
- * The client IP comes from X-Forwarded-For, which Caddy sets in production.
+ * Limiteur à fenêtre fixe sur Redis (§5.6). L'IP vient de X-Forwarded-For, que
+ * Caddy renseigne en production.
  */
 export function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
   return async (c, next) => {
@@ -34,32 +31,29 @@ export function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
   }
 }
 
-// Anti-brute-force on login: 5 attempts / minute / IP (§5.6, T-AUTH-02).
+// Anti-force brute (§5.6, T-AUTH-02).
 export const loginRateLimit = rateLimit({ keyPrefix: 'login', limit: 5, windowSec: 60 })
 
-// Throttle attachment uploads: 20 / minute / IP — limite l'abus du stockage (§7.3).
+// Limite l'abus du stockage (§7.3).
 export const uploadRateLimit = rateLimit({ keyPrefix: 'upload', limit: 20, windowSec: 60 })
 
-// Demande de réinitialisation : 5 / heure / IP. Empêche d'utiliser le formulaire
-// « mot de passe oublié » pour bombarder des boîtes mail ou balayer des adresses
-// à grande échelle (le service applique en plus un plafond par compte).
+// Empêche de bombarder des boîtes mail depuis le formulaire « mot de passe
+// oublié » (le service ajoute un plafond par compte).
 export const passwordResetRateLimit = rateLimit({
   keyPrefix: 'pwreset',
   limit: 5,
   windowSec: 60 * 60,
 })
 
-// Soumission du nouveau mot de passe (lien reçu par e-mail) : 10 / heure / IP.
-// Le jeton fait 256 bits, il n'est pas devinable — la limite couvre surtout
-// l'abus du point d'entrée (hachage argon2id, appel HIBP).
+// Le jeton de 256 bits n'est pas devinable : la limite protège surtout le coût
+// du point d'entrée (argon2id, appel HIBP).
 export const passwordResetSubmitRateLimit = rateLimit({
   keyPrefix: 'pwreset-submit',
   limit: 10,
   windowSec: 60 * 60,
 })
 
-// Changement de mot de passe : 5 / minute / IP, comme le login — le mot de passe
-// actuel y est exigé, ce point d'entrée est donc attaquable par force brute.
+// Le mot de passe actuel y est exigé : même exposition qu'un login.
 export const passwordChangeRateLimit = rateLimit({
   keyPrefix: 'pwchange',
   limit: 5,

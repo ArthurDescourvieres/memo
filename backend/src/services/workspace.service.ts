@@ -13,9 +13,8 @@ import {
 import { emitToUser } from '../realtime/emitter.js'
 import type { CreateWorkspaceInput, UpdateWorkspaceInput } from '../schemas/workspace.schema.js'
 
-// Hard cap on members embedded in a workspace detail payload. Memberships are
-// bounded by design, but the cap keeps the response (and the cache entry) from
-// growing without limit.
+// Plafond des membres embarqués dans le détail d'un workspace : borne la taille
+// de la réponse et de l'entrée de cache.
 const MAX_EMBEDDED_MEMBERS = 200
 
 function toSlug(name: string): string {
@@ -88,9 +87,8 @@ export const workspaceService = {
     })
   },
 
-  // Cached read-through for the hot GET /api/workspaces/:id path. Returns the
-  // serialized JSON (from `cache:workspace:<id>` or freshly built) plus whether
-  // it was a hit, so the controller can stream it back and set X-Cache.
+  // Renvoie le JSON sérialisé et l'indicateur de hit : le contrôleur le relaie
+  // tel quel et positionne X-Cache.
   async getWorkspaceJsonById(workspaceId: string): Promise<CachedResult> {
     return cachedJson(workspaceCacheKey(workspaceId), WORKSPACE_CACHE_TTL, () =>
       this.getWorkspaceById(workspaceId),
@@ -104,10 +102,9 @@ export const workspaceService = {
   },
 
   async deleteWorkspace(workspaceId: string) {
-    // Récupère les fichiers à purger AVANT la suppression : la cascade BDD efface
-    // les lignes Attachment, mais jamais les fichiers sur disque (§ propriété —
-    // suppression). On les supprime après le commit pour ne pas perdre de données
-    // si la suppression BDD échoue.
+    // Lister les fichiers AVANT : la cascade efface les lignes Attachment mais
+    // pas le disque. Et les effacer APRÈS le commit, sinon un échec BDD laisse
+    // des notes pointant vers des fichiers disparus.
     const attachments = await prisma.attachment.findMany({
       where: { note: { folder: { workspaceId } } },
       select: { storedName: true },
@@ -137,8 +134,8 @@ export const workspaceService = {
     if (member.role === WorkspaceRole.OWNER) {
       throw Object.assign(new Error('Cannot change role of workspace owner'), { code: 'FORBIDDEN' })
     }
-    // Changer le rôle révoque les sessions du membre (incrément tokenVersion) :
-    // un membre rétrogradé perd ses droits dès le prochain refresh (§5.5).
+    // L'incrément de `tokenVersion` révoque ses sessions : un membre rétrogradé
+    // perd ses droits dès le prochain refresh (§5.5).
     const [updated] = await prisma.$transaction([
       prisma.workspaceMember.update({
         where: { userId_workspaceId: { userId, workspaceId } },
@@ -148,9 +145,7 @@ export const workspaceService = {
     ])
     securityLog('member_role_changed', { workspaceId, userId, role })
     await invalidateWorkspaceCache(workspaceId)
-    // Le membre peut avoir le workspace ouvert : on le prévient en direct pour
-    // que son UI applique le nouveau rôle sans attendre un rechargement (une
-    // rétrogradation EDITOR → VIEWER doit verrouiller l'éditeur immédiatement).
+
     emitToUser(userId, 'workspace:role', { workspaceId, role })
     return updated
   },
@@ -160,32 +155,19 @@ export const workspaceService = {
       where: { userId_workspaceId: { userId, workspaceId } },
     })
     if (member.role === WorkspaceRole.OWNER) {
-      // §5.4 / T-WS-01 : le propriétaire ne peut jamais être retiré.
       throw Object.assign(new Error('Cannot remove workspace owner'), {
         code: 'CANNOT_REMOVE_OWNER',
       })
     }
-    // Remove the member and bump their tokenVersion so their existing sessions
-    // are revoked on the next refresh (§5.5).
     await prisma.$transaction([
       prisma.workspaceMember.delete({ where: { userId_workspaceId: { userId, workspaceId } } }),
       prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } }),
     ])
     await invalidateWorkspaceCache(workspaceId)
-    // Même logique que la rétrogradation : l'ex-membre voit le workspace
-    // disparaître de son UI sans avoir à recharger. `role: null` = plus membre.
+    // `role: null` = plus membre : le workspace disparaît de son UI sans rechargement.
     emitToUser(userId, 'workspace:role', { workspaceId, role: null })
   },
 
-  /**
-   * Transfère la propriété d'un workspace à un autre de ses membres.
-   *
-   * Transaction atomique (§ propriété — transfert) : `Workspace.ownerId` pointe
-   * vers le nouveau propriétaire, l'ancien OWNER redevient EDITOR et le nouveau
-   * membre passe OWNER. Le nouveau propriétaire doit déjà être membre. Le rôle
-   * étant relu en BDD à chaque requête (requireRole), le changement prend effet
-   * immédiatement sans révoquer de session.
-   */
   async transferOwnership(workspaceId: string, newOwnerUserId: string) {
     const workspace = await prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId },

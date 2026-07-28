@@ -12,18 +12,16 @@ interface Props<T extends string> {
   onChange: (value: T) => void
   options: readonly SelectOption<T>[]
   disabled?: boolean
-  /** Classes appliquées au déclencheur (taille / police / flex). */
+  /** Appliquées au déclencheur, pas au menu. */
   className?: string
   ariaLabel?: string
   title?: string
 }
 
 /**
- * Menu déroulant custom (combobox + listbox) qui remplace `<select>`.
- * Le popup natif ne peut être ni paddé ni thémé de façon fiable (en sombre il
- * s'affiche en blanc) : on le re-rend nous-mêmes via un portail `fixed`, posé
- * sous le déclencheur, au-dessus des modales. Fermeture au clic dehors, au
- * scroll, au resize ou sur Échap. Clavier : ↑/↓, Début/Fin, Entrée, Espace.
+ * Remplace `<select>`, dont le popup natif ne peut être ni paddé ni thémé de
+ * façon fiable — en sombre il s'affiche en blanc. Reconstruit ici en
+ * combobox + listbox, dans un portail `fixed` posé au-dessus des modales.
  */
 export function Select<T extends string>({
   value,
@@ -63,8 +61,7 @@ export function Select<T extends string>({
     triggerRef.current?.focus()
   }
 
-  // Fermeture sur interaction extérieure : clic, scroll (capture, pour attraper
-  // le scroll d'une modale), resize.
+  // Scroll écouté en capture, pour attraper aussi celui d'une modale.
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {

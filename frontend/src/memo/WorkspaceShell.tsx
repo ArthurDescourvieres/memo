@@ -28,13 +28,12 @@ export function WorkspaceShell() {
 
   const isMobile = useIsMobile()
   const workspaces = useWorkspaces()
-  // Un changement de rôle décidé par un propriétaire est poussé en direct
-  // (Socket.IO) : `currentRole` ci-dessous se met à jour sans rechargement.
+  // Un changement de rôle poussé par un propriétaire met `currentRole` à jour
+  // sans rechargement.
   useRoleSync()
 
-  // Dernière position connue (workspace / dossier / note), relue une seule fois
-  // au montage : l'app ne routant pas les notes dans l'URL, c'est elle qui
-  // rétablit l'écran quitté après un F5 au lieu de repartir de l'accueil.
+  // Les notes ne sont pas routées dans l'URL : c'est cette position mémorisée
+  // qui rétablit l'écran quitté après un F5. Relue une seule fois, au montage.
   const [restored] = useState(() => readLastLocation(user?.id ?? null))
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
     restored?.workspaceId ?? null,
@@ -52,23 +51,20 @@ export function WorkspaceShell() {
     { mode: 'create' } | { mode: 'edit'; workspace: WorkspaceWithRole } | null
   >(null)
   const del = useDeleteWorkspace()
-  // Sur mobile, un seul volet à la fois : 'list' = menu (workspaces/dossiers/notes),
-  // 'editor' = note ouverte en plein écran. Ignoré sur desktop (les deux cohabitent).
+  // Sur mobile, un seul volet à la fois. Ignoré sur desktop, où les deux cohabitent.
   const [mobilePane, setMobilePane] = useState<'list' | 'editor'>(
     restored?.noteId ? 'editor' : 'list',
   )
-  // Cible de « révélation » dans l'arbre : recherche et restauration la mettent
-  // à jour, via un nonce, pour déplier le chemin sans interférer avec les clics
-  // de sélection. `focus` distingue le saut demandé (recherche, on focalise la
-  // ligne) de la restauration silencieuse au rechargement.
+  // Cible à déplier dans l'arbre. Le nonce évite d'interférer avec les clics de
+  // sélection ; `focus` distingue le saut demandé de la restauration silencieuse.
   const [reveal, setReveal] = useState<{
     folderId: string | null
     nonce: number
     focus: boolean
   }>({ folderId: null, nonce: 0, focus: true })
 
-  // Premier workspace par défaut — et repli sur celui-ci si le workspace
-  // restauré n'existe plus (supprimé, accès révoqué depuis la dernière visite).
+  // Premier workspace par défaut, et repli sur lui si le workspace restauré
+  // n'existe plus (supprimé, accès révoqué entre-temps).
   useEffect(() => {
     const list = workspaces.data
     if (!list || list.length === 0) return
@@ -78,9 +74,7 @@ export function WorkspaceShell() {
 
   const folders = useFolders(selectedWorkspaceId)
 
-  // Reset de la sélection au changement de workspace. L'arbre gère ensuite
-  // lui-même l'expansion et le chargement paresseux des notes par dossier.
-  // On compare au workspace précédent pour ne PAS effacer, au montage, la
+  // Comparé au workspace précédent pour ne pas effacer, au montage, la
   // sélection tout juste restaurée depuis le stockage local.
   const prevWorkspaceRef = useRef(selectedWorkspaceId)
   useEffect(() => {
@@ -91,9 +85,8 @@ export function WorkspaceShell() {
     setReveal((r) => ({ ...r, folderId: null }))
   }, [selectedWorkspaceId])
 
-  // Restauration : une fois l'arbre chargé, on déplie le chemin du dossier
-  // quitté (même mécanisme que la recherche) pour que la note restaurée soit
-  // visible dans la sidebar sans redérouler les dossiers à la main. Une seule fois.
+  // Une fois l'arbre chargé, déplier le chemin du dossier quitté pour que la
+  // note restaurée soit visible sans redérouler les dossiers à la main.
   const revealRestored = useRef(Boolean(restored?.folderId))
   useEffect(() => {
     if (!revealRestored.current || !folders.data) return
@@ -103,19 +96,17 @@ export function WorkspaceShell() {
     setReveal((r) => ({ folderId, nonce: r.nonce + 1, focus: false }))
   }, [folders.data, restored])
 
-  // Si le dossier sélectionné disparaît de l'arbre (supprimé, ex. glissé vers la
-  // corbeille), on abandonne la sélection : sinon l'écran d'accueil tenterait de
-  // créer une note dans un dossier fantôme.
+  // Sans ça, l'écran d'accueil tenterait de créer une note dans un dossier
+  // fantôme après sa suppression.
   useEffect(() => {
     if (selectedFolderId && folders.data && !folders.data.some((f) => f.id === selectedFolderId)) {
       setSelectedFolderId(null)
     }
   }, [folders.data, selectedFolderId])
 
-  // La note ouverte porte son dossier : on mémorise ce dernier pour pouvoir
-  // rouvrir l'arbre au bon endroit, y compris quand la note a été ouverte
-  // depuis la recherche ou une sous-arborescence non « sélectionnée ».
-  // Même clé de cache que l'éditeur : aucune requête supplémentaire.
+  // Le dossier porté par la note ouverte, pour rouvrir l'arbre au bon endroit
+  // même quand elle vient de la recherche. Même clé de cache que l'éditeur,
+  // donc aucune requête supplémentaire.
   const openedNote = useNote(selectedNoteId)
   const openedFolderId = openedNote.data?.id === selectedNoteId ? openedNote.data.folderId : null
 
@@ -135,15 +126,13 @@ export function WorkspaceShell() {
   const canEdit = currentRole === 'OWNER' || currentRole === 'EDITOR'
   const isOwner = currentRole === 'OWNER'
 
-  // Ouvre une note (clic explicite) et bascule sur l'éditeur en mobile.
-  // id null (ex. après suppression de la note courante) => retour au menu.
+  // `id` null (suppression de la note courante) ramène au menu en mobile.
   const openNote = (id: string | null) => {
     setSelectedNoteId(id)
     setMobilePane(id ? 'editor' : 'list')
   }
 
-  // Referme l'éditeur quand la note ouverte n'est plus consultable (corbeille,
-  // dossier supprimé), signalé par NoteEditor. Mémoïsé pour ne pas relancer son effet.
+  // Mémoïsé : NoteEditor l'a en dépendance d'effet.
   const handleNoteGone = useCallback(() => {
     setSelectedNoteId(null)
     setMobilePane('list')
@@ -190,7 +179,6 @@ export function WorkspaceShell() {
                 }`
           }
         >
-          {/* L'arrière-plan de la sidebar (halo radial + couleur) est un effet conservé en CSS. */}
           <aside
             className={`box-border flex h-full min-h-0 flex-col gap-4 overflow-x-hidden p-4 transition-transform duration-[320ms] ease-[var(--ease-in-out)] ${
               isMobile
@@ -203,9 +191,8 @@ export function WorkspaceShell() {
           >
             <header className="flex items-center gap-2">
               {!isMobile && <SidebarToggleButton onClick={() => setCollapsed(true)} />}
-              {/* En mobile, le panneau couvre l'écran : le même bouton le
-                  referme et ramène sur la note ouverte, sans avoir à
-                  redérouler dossiers et sous-dossiers pour la retrouver. */}
+              {/* En mobile le panneau couvre l'écran : le même bouton le referme
+                  et ramène sur la note ouverte. */}
               {isMobile && selectedNoteId && (
                 <SidebarToggleButton
                   onClick={() => setMobilePane('editor')}
@@ -221,11 +208,9 @@ export function WorkspaceShell() {
               </div>
             )}
 
-            {/* Pas de défilement ici : c'est l'arbre qui défile, en occupant la
-                hauteur restante — sinon il se plafonnerait en laissant du vide
-                sous lui. -mx/px compensés : gutter interne pour que le halo de
-                focus (:focus-visible, outline + offset) des champs ne soit pas
-                rogné par le clip horizontal des conteneurs qui défilent. */}
+            {/* Pas de défilement ici, c'est l'arbre qui défile. Les -mx/px
+                compensés ménagent une gouttière pour que l'anneau de focus des
+                champs ne soit pas rogné par le clip horizontal. */}
             <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-4 px-1.5">
               {selectedWorkspaceId && (
                 <SearchBox
@@ -242,8 +227,6 @@ export function WorkspaceShell() {
                 <FolderTree
                   key={selectedWorkspaceId}
                   workspaceId={selectedWorkspaceId}
-                  // Le nom du workspace titre l'arbre : la liste des espaces est
-                  // en bas de la sidebar, réduite à des icônes.
                   workspaceName={currentWorkspace?.name ?? 'Espace'}
                   folders={folders.data ?? []}
                   selectedFolderId={selectedFolderId}
@@ -301,8 +284,7 @@ export function WorkspaceShell() {
               : 'min-w-0 flex-1 overflow-auto p-8'
           }
         >
-          {/* Même bouton (et même icône) qu'en desktop : c'est le panneau qu'on
-              affiche, pas une « page précédente ». */}
+          {/* Même bouton qu'en desktop : on affiche un panneau, ce n'est pas un retour. */}
           {isMobile && (
             <SidebarOpenButton
               visible

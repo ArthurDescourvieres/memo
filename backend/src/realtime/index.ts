@@ -55,8 +55,8 @@ export function registerRealtime(io: Server): void {
   io.on('connection', (socket: Socket) => {
     void hydrateUser(socket)
 
-    // Room personnelle : permet au monde HTTP (ex. changement de rôle par le
-    // propriétaire) de pousser un évènement à toutes les sessions du membre.
+    // Room personnelle : le monde HTTP peut y pousser un évènement (changement
+    // de rôle, par exemple) vers toutes les sessions du membre.
     socket.join(userRoom(getUserId(socket)))
 
     socket.on('note:join', async (payload, ack) => {
@@ -72,10 +72,7 @@ export function registerRealtime(io: Server): void {
       const data = socket.data as SocketDataWithUser
       const me = { socketId: socket.id, userId, name: data.name ?? 'Anonyme' }
 
-      // Tell the joiner who is already in the room (excluding themselves).
       const snapshot = (await presenceSnapshot(io, noteId)).filter((p) => p.socketId !== socket.id)
-
-      // Tell everyone else (in this and other instances) that someone joined.
       socket.to(roomFor(noteId)).emit('presence:joined', { noteId, ...me })
 
       ack?.({ ok: true, presence: snapshot })
@@ -111,7 +108,7 @@ export function registerRealtime(io: Server): void {
           ...(content !== undefined ? { content } : {}),
           ...(title !== undefined ? { title } : {}),
         })
-        // Broadcast to OTHERS in the room — sender already has the latest.
+        // `socket.to` et non `io.to` : l'émetteur a déjà la dernière version.
         socket.to(roomFor(noteId)).emit('note:update', {
           noteId,
           content: updated.content,

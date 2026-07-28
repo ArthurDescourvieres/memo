@@ -49,12 +49,8 @@ export const noteService = {
   },
 
   /**
-   * Déplace une note vers un autre dossier du même workspace.
-   *
-   * La note a déjà été résolue par le middleware (l'appelant est EDITOR sur son
-   * workspace). On vérifie ici que le dossier cible existe et appartient au même
-   * workspace, sinon on refuse : un déplacement inter-workspaces contournerait le
-   * contrôle d'accès (§ périmètre — déplacement).
+   * Le middleware a déjà validé les droits sur la note ; reste à vérifier la
+   * cible, car un déplacement inter-workspaces contournerait ce contrôle.
    */
   async moveNote(noteId: string, targetFolderId: string) {
     const note = await prisma.note.findUniqueOrThrow({
@@ -81,10 +77,8 @@ export const noteService = {
     return prisma.note.update({ where: { id: noteId }, data: { deletedAt: null } })
   },
 
-  // Soft-deleted notes across the whole workspace. Powers the trash view, since
-  // getNotesByFolder filters them out (deletedAt: null) and restoreNote needs an
-  // id to act on. Notes whose folder is itself in the trash are excluded: the
-  // folder represents them in the trash and restoring it brings them back.
+  // Les notes dont le dossier est lui-même en corbeille sont exclues : c'est le
+  // dossier qui les représente là-bas, et le restaurer les ramène.
   async getDeletedNotesByWorkspace(workspaceId: string, p: Pagination) {
     const where: Prisma.NoteWhereInput = {
       deletedAt: { not: null },

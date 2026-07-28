@@ -13,7 +13,7 @@ type TiptapNode = {
   content?: TiptapNode[]
 }
 
-// ProseMirror node/mark types the editor can legitimately produce (§8.1).
+// Ce que l'éditeur peut légitimement produire (§8.1) : tout le reste tombe.
 const ALLOWED_NODES = new Set([
   'doc',
   'paragraph',
@@ -36,8 +36,7 @@ const EMPTY_DOC = { type: 'doc', content: [] }
 function stripEventAttrs(attrs: Record<string, unknown>): Record<string, unknown> {
   const clean: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(attrs)) {
-    // Drop event-handler attributes (onclick, onerror, ...) entirely.
-    if (/^on/i.test(key)) continue
+    if (/^on/i.test(key)) continue // onclick, onerror…
     clean[key] = value
   }
   return clean
@@ -46,7 +45,7 @@ function stripEventAttrs(attrs: Record<string, unknown>): Record<string, unknown
 function isSafeUrl(value: unknown, schemes: string[]): boolean {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
-  if (trimmed.startsWith('/')) return true // relative app URL (e.g. /api/attachments/..)
+  if (trimmed.startsWith('/')) return true // URL interne, ex. /api/attachments/…
   try {
     return schemes.includes(new URL(trimmed).protocol.replace(':', ''))
   } catch {
@@ -82,7 +81,6 @@ function sanitizeNode(node: TiptapNode): TiptapNode | null {
 
   if (node.attrs) {
     const attrs = stripEventAttrs(node.attrs)
-    // Images may only point at the app's own uploads or http(s).
     if (node.type === 'image' && !isSafeUrl(attrs.src, ['http', 'https'])) {
       return null
     }
@@ -101,12 +99,8 @@ function sanitizeNode(node: TiptapNode): TiptapNode | null {
 }
 
 /**
- * Server-side sanitisation of Tiptap (ProseMirror) JSON (§8.1).
- *
- * Keeps only whitelisted node and mark types, removes every event-handler
- * attribute, and rejects unsafe link/image URLs — so the database never
- * stores a forged node and a malicious `on*` attribute can never be rendered
- * (complements DOMPurify on the client; see T-NOTE-02).
+ * Assainissement serveur du JSON Tiptap (§8.1) : la base ne doit jamais stocker
+ * un nœud forgé. Double barrière avec DOMPurify côté client (T-NOTE-02).
  */
 export function sanitizeTiptapContent(content: unknown): Prisma.InputJsonValue {
   if (!content || typeof content !== 'object') {

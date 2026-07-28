@@ -3,12 +3,9 @@ import { authService } from './auth.service.js'
 
 export const userService = {
   /**
-   * Désactive (soft-delete) le compte courant : démarre la période de grâce de
-   * 30 jours avant purge définitive (§ RGPD — droit à l'effacement).
-   *
-   * - `deactivatedAt = now` : marque le compte et bloque tout nouveau login ;
-   * - bump `tokenVersion` : invalide tous les refresh tokens (toutes sessions) ;
-   * - blacklist du refresh courant : coupe la session en cours immédiatement.
+   * Ouvre la période de grâce de 30 jours avant purge définitive (§ RGPD).
+   * Le compte est bloqué au login et toutes ses sessions tombent, la courante
+   * comprise.
    */
   async deactivateAccount(userId: string, refreshToken?: string) {
     await prisma.user.update({
@@ -21,9 +18,8 @@ export const userService = {
   },
 
   /**
-   * Export RGPD (droit à la portabilité) : l'ensemble des données personnelles
-   * du compte, en JSON. Les pièces jointes sont listées en métadonnées avec un
-   * lien de téléchargement authentifié (le binaire n'est pas inliné dans le JSON).
+   * Export RGPD (portabilité). Les pièces jointes ne sont listées qu'en
+   * métadonnées : le binaire reste derrière un lien authentifié.
    */
   async exportUserData(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({

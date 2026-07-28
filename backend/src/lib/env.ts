@@ -1,10 +1,6 @@
 /**
- * Centralised, fail-fast environment configuration.
- *
- * Per the security spec (§5.1) the application must refuse to start when a
- * required secret is missing, rather than silently falling back to a default
- * such as `'secret'`. Importing this module at boot therefore throws if
- * JWT_SECRET is absent — failing fast instead of running with a known key.
+ * Configuration d'environnement en fail-fast (§5.1) : importer ce module lève
+ * si un secret manque, plutôt que de démarrer sur une valeur par défaut connue.
  */
 
 export function requireEnv(name: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -17,29 +13,21 @@ export function requireEnv(name: string, env: NodeJS.ProcessEnv = process.env): 
 
 export const JWT_SECRET = requireEnv('JWT_SECRET')
 
-/**
- * Allowed CORS origins (comma-separated). Defaults to the Vite dev origin so
- * local development works out of the box; set CORS_ORIGINS in production.
- */
+/** Origines autorisées, séparées par des virgules. Par défaut : le serveur de dev Vite. */
 export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0)
 
-/**
- * Public base URL of the app, used to build links inside transactional e-mails
- * (e.g. the invitation link). Trailing slash is stripped so concatenation is
- * predictable. Defaults to the first CORS origin in dev.
- */
+/** Base des liens envoyés par e-mail. Slash final retiré : la concaténation reste prévisible. */
 export const APP_URL = (process.env.APP_URL ?? CORS_ORIGINS[0] ?? 'http://localhost:5173').replace(
   /\/+$/,
   '',
 )
 
 /**
- * Transactional e-mail (Brevo SMTP). Every field is optional: when host/user/
- * key are missing the mailer becomes a no-op (see lib/mailer), so dev and tests
- * run without a provider and invitations still work via the copy-link fallback.
+ * SMTP transactionnel (Brevo). Tout est optionnel : sans configuration le
+ * mailer devient inerte et les invitations passent par le lien à copier.
  */
 export const MAIL = {
   host: process.env.SMTP_HOST ?? '',
@@ -49,5 +37,4 @@ export const MAIL = {
   from: process.env.MAIL_FROM ?? 'Memo <noreply@localhost>',
 }
 
-/** True only when SMTP is fully configured; gates every send. */
 export const MAIL_ENABLED = Boolean(MAIL.host && MAIL.user && MAIL.pass)

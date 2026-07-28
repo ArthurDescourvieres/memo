@@ -3,8 +3,7 @@ import type { WorkspaceRole } from '@prisma/client'
 import { APP_URL, MAIL, MAIL_ENABLED } from './env.js'
 import { logger } from './logger.js'
 
-// Lazily built so importing this module never opens a connection (and tests
-// that don't configure SMTP never touch nodemailer at all).
+// Construit à la demande : importer ce module n'ouvre jamais de connexion.
 let transporter: Transporter | null = null
 
 function getTransport(): Transporter | null {
@@ -13,7 +12,7 @@ function getTransport(): Transporter | null {
     transporter = nodemailer.createTransport({
       host: MAIL.host,
       port: MAIL.port,
-      secure: MAIL.port === 465, // 465 = implicit TLS; 587 = STARTTLS
+      secure: MAIL.port === 465, // 465 = TLS implicite, 587 = STARTTLS
       auth: { user: MAIL.user, pass: MAIL.pass },
     })
   }
@@ -26,19 +25,15 @@ const ROLE_LABEL: Record<WorkspaceRole, string> = {
   VIEWER: 'lecteur',
 }
 
-/** Build the invite link from the server-side base URL (APP_URL). */
 export function inviteLink(token: string): string {
   return `${APP_URL}/?invite=${encodeURIComponent(token)}`
 }
 
-/** Build the password-reset link from the server-side base URL (APP_URL). */
 export function resetLink(token: string): string {
   return `${APP_URL}/reinitialiser-mot-de-passe?token=${encodeURIComponent(token)}`
 }
 
-// Minimal HTML escaping for values interpolated into the e-mail body. The
-// workspace name is user-controlled, so this prevents it from breaking out of
-// the markup.
+// Le nom du workspace vient de l'utilisateur : il ne doit pas sortir du balisage.
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -100,9 +95,8 @@ function buildHtml(input: InvitationEmail, link: string): string {
 }
 
 /**
- * Send the workspace-invitation e-mail. Never throws and never logs the token:
- * on failure (or when mail is disabled) it logs the outcome and resolves false,
- * so invitation creation is unaffected — the OWNER can still forward the link.
+ * Ne lève jamais : un échec d'envoi ne doit pas faire échouer la création de
+ * l'invitation, le propriétaire peut toujours transmettre le lien lui-même.
  */
 export async function sendInvitationEmail(input: InvitationEmail): Promise<boolean> {
   const transport = getTransport()
@@ -173,15 +167,9 @@ function buildResetHtml(link: string): string {
 }
 
 /**
- * Send the password-reset e-mail. Like the invitation mail it never throws, so
- * a SMTP outage can't turn the "forgot password" endpoint into a user-enumeration
- * oracle (the controller answers the same thing either way).
- *
- * When SMTP is not configured the link is printed to the log *outside of
- * production only*, so the flow stays testable locally — there is no copy-link
- * fallback in the UI for a reset, unlike invitations. The URL is logged under
- * `resetUrl` deliberately: it must stay out of production logs, hence the
- * NODE_ENV guard (same invariant the secure-cookie flag already relies on).
+ * Ne lève jamais non plus : une panne SMTP ferait du « mot de passe oublié » un
+ * oracle d'énumération de comptes. Hors production, le lien est journalisé
+ * faute de repli « copier le lien » dans l'UI — d'où la garde NODE_ENV.
  */
 export async function sendPasswordResetEmail(input: {
   to: string
